@@ -12,6 +12,7 @@
 #include <signal.h>
 #include <fcntl.h>
 #include <time.h>
+#include "packet.h"
 
 #define MAX_BUFFER_SIZE 4096
 
@@ -36,10 +37,10 @@ int main(int argc, char *argv[]) {
   int sock_fd, port, yes = 1; 
   unsigned int cli_len;
   struct sockaddr_in serv_addr, client_addr;
-  char buf[MAX_BUFFER_SIZE]; /* message buf */
   struct hostent *hostp; /* client host info */
   char *hostaddrp; /* dotted decimal host addr string */
-  int n;
+  int recv_len;
+  struct Packet received_packet; 
 
   // Parse port number 
   if (argc != 2) {
@@ -48,7 +49,7 @@ int main(int argc, char *argv[]) {
   }
   port = atoi(argv[1]);
 
-  // Open socket connection
+  // Open socket connection with UDP
   if((sock_fd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
     perror("Error opening socket");
     exit(1);
@@ -77,15 +78,19 @@ int main(int argc, char *argv[]) {
   while(1) {
     
   
-    // recvfrom: receive a UDP datagram from a client
-     
-    bzero(buf, MAX_BUFFER_SIZE);
-    n = recvfrom(sock_fd, buf, MAX_BUFFER_SIZE, 0,
-     (struct sockaddr *) &client_addr, &cli_len);
-    if (n < 0)
+    // Receive a packet from client  
+    recv_len = recvfrom(sock_fd, &received_packet, sizeof(received_packet), 0,
+                       (struct sockaddr *) &client_addr, &cli_len);
+    
+    if (recv_len < 0) {
       error("ERROR in recvfrom");
+    }
 
+    if (received_packet.type == TYPE_REQUEST) {
+      printf("Attempting to open file: %s", received_packet.data)
+    }
    
+    /* SAMPLE CODE
     // gethostbyaddr: determine who sent the datagram
      
     hostp = gethostbyaddr((const char *)&client_addr.sin_addr.s_addr, 
@@ -106,6 +111,7 @@ int main(int argc, char *argv[]) {
          (struct sockaddr *) &client_addr, cli_len);
     if (n < 0) 
       error("ERROR in sendto");
+    */
   }
   
 }
