@@ -13,6 +13,9 @@
 #define TYPE_ACK 2
 #define TYPE_END_DATA 3
 
+// DEBUG 
+#define PRINT_DATA 0
+
 struct Packet {
   int sequence; 
   int type; 
@@ -35,7 +38,20 @@ void print_packet(struct Packet p) {
     else
         type = "UNKNOWN";
     
-    printf("Packet type: %s, Sequence: %d, Data length: %d\n", type, p.sequence, p.length);
+    printf("Sequence: %d, Packet type: %s, Data length: %d\n", p.sequence, type, p.length);
 
-    printf("Data: %s\n", p.data);
+    if (PRINT_DATA) {
+      printf("Data: %s\n", p.data);  
+    }
+}
+
+void print_packet_array(struct Packet* p, int size) {
+  if (p == NULL) {
+    printf("DEBUG: Packet array is null.\n");
+    return; 
+  }
+  int i; 
+  for (i = 0; i < size; i++) {
+    print_packet(p[i]); 
+  }
 }
