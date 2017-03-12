@@ -93,10 +93,13 @@ int main(int argc, char *argv[])
 
     // Send the request
     serverlen = sizeof(serveraddr);
-    if (sendto(sockfd, &request, sizeof(request), 0, (struct sockaddr *) &serv_addr, serverlen) < 0)
+    if (sendto(sockfd, &request, sizeof(request), 0, (struct sockaddr *) &serveraddr, serverlen) < 0)
       error("ERROR sending request");
+
     // DEBUGGING
     printf("Sent request for file %s\n", filename);
+
+    print_packet(request);
 
     // TODO: Start timer for timeout
 
@@ -118,11 +121,11 @@ int main(int argc, char *argv[])
     }
 
     // REMOVE: Print server's reply
-    n = recvfrom(sockfd, buf, strlen(buf), 0, &serveraddr, &serverlen);
-    if (n < 0) 
-      error("ERROR in recvfrom");
-    printf("Echo from server: %s", buf);
-    return 0; 
+    //n = recvfrom(sockfd, buf, strlen(buf), 0, &serveraddr, &serverlen);
+    //if (n < 0) 
+    //  error("ERROR in recvfrom");
+    //printf("Echo from server: %s", buf);
+    //return 0; 
 
     // Close the socket
     close(sockfd);
