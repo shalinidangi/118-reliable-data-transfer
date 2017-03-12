@@ -12,6 +12,7 @@
 #include <signal.h>
 #include <fcntl.h>
 #include <time.h>
+
 #include "packet.h"
 
 #define MAX_BUFFER_SIZE 4096
@@ -24,6 +25,57 @@ void error(char *msg) {
   exit(1);
 }
 
+/**
+ * Divides the requested file into data packets
+ */
+struct Packet* packetize_file(FILE * f) {
+  struct Packet* packets = NULL;
+  struct Packet data_packet; 
+  int file_size;
+  int num_packets = 0;   
+
+  // Determine size of file and number of packets needed 
+  fseek(f, 0, SEEK_END); 
+  file_size = ftell(f); 
+  rewind(f);
+  printf("DEBUG: The requested file is %d bytes.\n", file_size); 
+
+  num_packets = file_size / PACKET_DATA_SIZE; 
+  if (file_size % PACKET_DATA_SIZE) {
+    num_packets++; 
+  }
+  printf("DEBUG: The number of packets needed for the file is %d\n", num_packets); 
+
+  // Create the packets array
+  packets = (struct Packet*) malloc(sizeof(struct Packet) * num_packets);
+  
+  if (packets == NULL) {
+    error("Creating packets array failed.\n");
+  }
+
+  // Divide file into packets
+  int i; 
+  for (i = 0; i < num_packets; i++) {
+    memset((char *) &data_packet, 0, sizeof(data_packet));
+    data_packet.sequence = i; 
+    data_packet.length = fread(data_packet.data, sizeof(char), PACKET_DATA_SIZE, f); 
+
+    // Set last data packet
+    if (i == num_packets - 1) {
+      data_packet.type = TYPE_END_DATA; 
+    }
+    else {
+      data_packet.type = TYPE_DATA; 
+    }
+
+    packets[i] = data_packet;
+  }
+
+  printf("DEBUG: Content of packet array: \n");
+  print_packet_array(packets, num_packets); 
+  return packets;
+}
+
 int main(int argc, char *argv[]) {
   
   /**
@@ -34,13 +86,16 @@ int main(int argc, char *argv[]) {
    * CS118 Discussion Slides
    */
   
-  int sock_fd, port, yes = 1; 
+  int sock_fd, port, recv_len, yes = 1; 
   unsigned int cli_len;
   struct sockaddr_in serv_addr, client_addr;
-  struct hostent *hostp; /* client host info */
-  char *hostaddrp; /* dotted decimal host addr string */
-  int recv_len;
-  struct Packet received_packet; 
+  struct hostent *hostp; // Client host info
+  char *hostaddrp; // Host address string
+  
+  struct Packet received_packet; // Packet received from client
+  FILE * f; 
+  struct Packet* packets; //Array of packets for file 
+  int number_of_packets; 
 
   // Parse port number 
   if (argc != 2) {
@@ -79,15 +134,26 @@ int main(int argc, char *argv[]) {
     
   
     // Receive a packet from client  
-    recv_len = recvfrom(sock_fd, &received_packet, sizeof(received_packet), 0,
+    recv_len = recvfrom(sock_fd, &received_packet, sizeof(struct Packet), 0,
                        (struct sockaddr *) &client_addr, &cli_len);
     
     if (recv_len < 0) {
-      error("ERROR in recvfrom");
+      error("No data received!\n");
     }
 
+    printf("DEBUG: Receving a request! The contents of the packet are: \n");
+    print_packet(received_packet);  
+    printf("DEBUG: The size of the packet is: %d\n", recv_len);
+
     if (received_packet.type == TYPE_REQUEST) {
-      printf("Attempting to open file: %s", received_packet.data)
+      printf("DEBUG: File to be opened: %s\n", received_packet.data);
+      f = fopen(received_packet.data, "r");
+      
+      if (f == NULL) {
+        error("Error opening file.\n");
+      }
+
+      packets = packetize_file(f);
     }
    
     /* SAMPLE CODE
