@@ -8,6 +8,8 @@
 #include <time.h>
 #include <sys/time.h>
 
+#include "packet.h"
+
 #define BUFSIZE 1024
 
 void error(char *msg) {
@@ -16,10 +18,18 @@ void error(char *msg) {
 }
 
 // Function that sends an acknowledgment to the server
-void send_ACK(int ack_num, int sockfd, struct sockaddr_in serv_addr)
+void send_ack(int ack_num, int sockfd, struct sockaddr_in serv_addr)
 {
-    // TODO
-    return;
+    struct Packet ack;
+    ack.sequence = ack_num;
+    ack.type = TYPE_ACK;
+    ack.length = 0;
+    strcpy(ack.data, "");
+
+    if (sendto(sockfd, &ack, sizeof(ack), 0, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)
+      error("ERROR sending acknowledgment");
+
+    printf("Sent ack %d.\n", ack_num);
 }
 
 int main(int argc, char *argv[])
@@ -38,11 +48,19 @@ int main(int argc, char *argv[])
     char* hostname;
     char buf[BUFSIZE];
 
+    struct Packet request;
+
     // Parse command line arguments
         // hostname
         // port number
         // filename
         // etc.
+
+    if (argc != 4) {
+     fprintf(stderr, "usage: %s <hostname> <port> <filename>\n", argv[0]);
+     exit(1);
+    }
+
     hostname = argv[1];
     portno = atoi(argv[2]);
     filename = argv[3];
@@ -52,12 +70,12 @@ int main(int argc, char *argv[])
         // use socket() call
     sockfd = socket(AF_INET, SOCK_DGRAM, 0);
     if (sockfd < 0) 
-        error("ERROR opening socket");
+      error("ERROR opening socket");
 
     server = gethostbyname(hostname);
     if (server == NULL) {
-        fprintf(stderr,"ERROR, no such host as %s\n", hostname);
-        exit(0);
+      fprintf(stderr,"ERROR, no such host as %s\n", hostname);
+      exit(0);
     }
     
     // Update address information
@@ -67,23 +85,18 @@ int main(int argc, char *argv[])
       (char *)&serveraddr.sin_addr.s_addr, server->h_length);
     serveraddr.sin_port = htons(portno);
 
-    
-    // TODO: Create the request
-        // Define a packet struct
+    // Create the request
+    memset((char *) &request, 0, sizeof(request));
+    strcpy(request.data, filename);
+    request.length = strlen(filename) + 1;
+    request.type = TYPE_REQUEST;
 
-    // REMOVE: temporary message from user for testing purposes
-    // replace with actual server request
-    bzero(buf, BUFSIZE);
-    printf("Please enter msg: ");
-    fgets(buf, BUFSIZE, stdin);
-
-    // TODO: Send the request
-
-    // REMOVE: Send temporary message to the server
+    // Send the request
     serverlen = sizeof(serveraddr);
-    n = sendto(sockfd, buf, strlen(buf), 0, &serveraddr, serverlen);
-    if (n < 0) 
-      error("ERROR in sendto");
+    if (sendto(sockfd, &request, sizeof(request), 0, (struct sockaddr *) &serv_addr, serverlen) < 0)
+      error("ERROR sending request");
+    // DEBUGGING
+    printf("Sent request for file %s\n", filename);
 
     // TODO: Start timer for timeout
 

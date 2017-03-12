@@ -1,5 +1,5 @@
 /**
- * Packet.h
+ * packet.h
  * High level representation of a packet 
  */
 
