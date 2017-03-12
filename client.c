@@ -93,11 +93,12 @@ int main(int argc, char *argv[])
 
     // Send the request
     serverlen = sizeof(serveraddr);
-    if (sendto(sockfd, &request, sizeof(request), 0, (struct sockaddr *) &serveraddr, serverlen) < 0)
+    if (sendto(sockfd, &request, sizeof(struct Packet), 0, (struct sockaddr *) &serveraddr, serverlen) < 0)
       error("ERROR sending request");
 
     // DEBUGGING
     printf("Sent request for file %s\n", filename);
+    printf("The size of the packet is: %d\n", sizeof(struct Packet));
 
     print_packet(request);
 

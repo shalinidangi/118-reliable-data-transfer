@@ -37,5 +37,5 @@ void print_packet(struct Packet p) {
     
     printf("Packet type: %s, Sequence: %d, Data length: %d\n", type, p.sequence, p.length);
 
-    printf("Data: %s", p.data);
+    printf("Data: %s\n", p.data);
 }
