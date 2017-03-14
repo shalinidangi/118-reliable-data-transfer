@@ -29,7 +29,7 @@ void error(char *msg) {
  * Calculate the number of packets for the given file 
  */
 
-int number_of_packets(FILE* f) {
+int number_of_packets(FILE * f) {
   // Determine size of file and number of packets needed 
   int num; 
   fseek(f, 0, SEEK_END); 
@@ -104,7 +104,7 @@ int main(int argc, char *argv[]) {
   struct Packet received_packet; // Packet received from client
   FILE * f; 
   struct Packet* packets; //Array of packets for file 
-  int number_of_packets; 
+  int n_packets; 
 
   // Parse port number 
   if (argc != 2) {
@@ -159,9 +159,24 @@ int main(int argc, char *argv[]) {
       if (f == NULL) {
         error("Error opening file.\n");
       }
-
+      n_packets = number_of_packets(f); 
       packets = packetize_file(f);
-    }
+
+      if (packets == NULL) {
+        error("File failed to be packetized\n");
+      }
+
+      int i; 
+      for (i = 0; i < n_packets; i++) {
+        if (sendto(sock_fd, &packets[i], sizeof(struct Packet), 0, 
+                  (struct sockaddr *) &client_addr, cli_len) > 0 ) {
+            printf("Writing Packet #%d , with length %d\n", packets[i].sequence, packets[i].length);
+        }
+        else {
+          printf("Error writing Packet #%d\n", packets[i].sequence); 
+        }
+      }
+    } // END OF REQUEST PACKET HANDLER
    
     /* SAMPLE CODE
     // gethostbyaddr: determine who sent the datagram
