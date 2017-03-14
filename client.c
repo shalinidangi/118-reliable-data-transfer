@@ -18,10 +18,10 @@ void error(char *msg) {
 }
 
 // Function that sends an acknowledgment to the server
-void send_ack(int ack_num, int sockfd, struct sockaddr_in serv_addr)
+void send_ack(int seq_num, int sockfd, struct sockaddr_in serv_addr)
 {
     struct Packet ack;
-    ack.sequence = ack_num;
+    ack.sequence = seq_num;
     ack.type = TYPE_ACK;
     ack.length = 0;
     strcpy(ack.data, "");
@@ -29,7 +29,7 @@ void send_ack(int ack_num, int sockfd, struct sockaddr_in serv_addr)
     if (sendto(sockfd, &ack, sizeof(ack), 0, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)
       error("ERROR sending acknowledgment");
 
-    printf("Sent ack %d.\n", ack_num);
+    printf("Sent ack %d.\n", seq_num);
 }
 
 int main(int argc, char *argv[])
@@ -40,7 +40,10 @@ int main(int argc, char *argv[])
     // Initialize variables
     int sockfd, portno, n, result;
     char* filename;
+
     FILE* f;
+    int num_bytes;
+    int f_index = 0;
 
     socklen_t serverlen;
     struct sockaddr_in serveraddr;
@@ -49,6 +52,15 @@ int main(int argc, char *argv[])
     char buf[BUFSIZE];
 
     struct Packet request;
+    struct Packet response;
+    struct Packet* buffer;
+    int buffer_index;
+
+    int expected_sequence = 0;
+
+    f = fopen("output", "ab");
+    if (f == NULL)
+      printf("Failed to open file");
 
     // Parse command line arguments
         // hostname
@@ -98,7 +110,7 @@ int main(int argc, char *argv[])
 
     // DEBUGGING
     printf("Sent request for file %s\n", filename);
-    printf("The size of the packet is: %d\n", sizeof(struct Packet));
+    printf("The size of the packet is: %lu\n", sizeof(struct Packet));
 
     print_packet(request);
 
@@ -111,14 +123,67 @@ int main(int argc, char *argv[])
     // TODO: Wait for response from server
     while (1) {
 
-        // If there is a timeout, resend the packet
+        // // TODO: If there is a timeout, resend the request
 
-        // Otherwise, wait for/handle response
+        // // Look for next sequence number in buffer
+        // // Continue this until it is not found, or until we have already found
+        // // the last sequence number
+        // while (not_found == false && end == false) {
+        //   for (int ix = 0; ix < buffer_index; ix++) {
+        //     if (expected_sequence == buffer[ix].sequence) {
+        //       int num_bytes = fwrite(buffer[ix].data, 1, buffer[ix].length, f);
+        //       f_index += num_bytes;
+        //       expected_sequence++;
+        //       break;
+        //     }
+        //   }
+        //   not_found == true;
+        // } 
 
-        // Check for corruption
+        // // Otherwise, wait for/handle response packet
+        // if (recvfrom(sockfd, &response, sizeof(response), 0, (struct sockaddr *) &serveraddr, &serverlen) < 0) {
+        //   printf("Packet was not received\n");
+        // }
 
-        // REMOVE: temporary break
-        break;
+        // // Packet received out of order, place in buffer.
+        // if (response.sequence != expected_sequence) {
+        //   printf("Packet was received out of order: expected %d, received %d.\n", expected_sequence, response.sequence);
+        //   send_ack(response.sequence, sockfd, serveraddr);
+
+        //   // Place out of order packet in buffer
+        //   buffer[buffer_index] = response;
+        //   buffer_index++;
+
+        // }
+        // // Packet received in order, write it to the file.
+        // else {
+        //   send_ack(expected_sequence, sockfd, serveraddr);
+        //   expected_sequence++;
+
+        //   int num_bytes = fwrite(response.data, 1, response.length, f);
+        //   // TODO: check if correct number of bytes were written to file
+        //   f_index += num_bytes;
+        // }
+
+        if (recvfrom(sockfd, &response, sizeof(response), 0, (struct sockaddr *) &serveraddr, &serverlen) < 0) {
+           printf("Packet was not received\n");
+           break;
+        }
+        
+        // Packet received in order
+        if (response.sequence == expected_sequence) {
+          send_ack(response.sequence, sockfd, serveraddr);
+          num_bytes = fwrite(response.data, 1, response.length, f);
+          if (num_bytes < 0)
+            printf("Write failed");
+          f_index += num_bytes;
+          expected_sequence++;
+          if (response.type == TYPE_END_DATA) break;
+        }
+        // TODO: Packet received out of order
+        else {
+
+        }
     }
 
     // REMOVE: Print server's reply
