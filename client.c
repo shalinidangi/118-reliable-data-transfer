@@ -58,6 +58,10 @@ int main(int argc, char *argv[])
 
     int expected_sequence = 0;
 
+    f = fopen("output", "ab");
+    if (f == NULL)
+      printf("Failed to open file");
+
     // Parse command line arguments
         // hostname
         // port number
@@ -170,6 +174,8 @@ int main(int argc, char *argv[])
         if (response.sequence == expected_sequence) {
           send_ack(response.sequence, sockfd, serveraddr);
           num_bytes = fwrite(response.data, 1, response.length, f);
+          if (num_bytes < 0)
+            printf("Write failed");
           f_index += num_bytes;
           expected_sequence++;
           if (response.type == TYPE_END_DATA) break;
