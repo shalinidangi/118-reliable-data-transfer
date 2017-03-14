@@ -26,6 +26,24 @@ void error(char *msg) {
 }
 
 /**
+ * Calculate the number of packets for the given file 
+ */
+
+int number_of_packets(FILE* f) {
+  // Determine size of file and number of packets needed 
+  int num; 
+  fseek(f, 0, SEEK_END); 
+  int file_size = ftell(f); 
+  rewind(f);
+  printf("DEBUG: The requested file is %d bytes.\n", file_size); 
+  num = file_size / PACKET_DATA_SIZE;
+  if (file_size % PACKET_DATA_SIZE) {
+    num++; 
+  }
+  return num;  
+}
+
+/**
  * Divides the requested file into data packets
  */
 struct Packet* packetize_file(FILE * f) {
@@ -34,18 +52,9 @@ struct Packet* packetize_file(FILE * f) {
   int file_size;
   int num_packets = 0;   
 
-  // Determine size of file and number of packets needed 
-  fseek(f, 0, SEEK_END); 
-  file_size = ftell(f); 
-  rewind(f);
-  printf("DEBUG: The requested file is %d bytes.\n", file_size); 
-
-  num_packets = file_size / PACKET_DATA_SIZE; 
-  if (file_size % PACKET_DATA_SIZE) {
-    num_packets++; 
-  }
+  num_packets = number_of_packets(f); 
   printf("DEBUG: The number of packets needed for the file is %d\n", num_packets); 
-
+  
   // Create the packets array
   packets = (struct Packet*) malloc(sizeof(struct Packet) * num_packets);
   
@@ -126,13 +135,11 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
 
-
   cli_len = sizeof(client_addr);
 
   printf("Waiting for incoming connections...\n"); 
   while(1) {
     
-  
     // Receive a packet from client  
     recv_len = recvfrom(sock_fd, &received_packet, sizeof(struct Packet), 0,
                        (struct sockaddr *) &client_addr, &cli_len);
