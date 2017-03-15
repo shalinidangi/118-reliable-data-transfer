@@ -48,7 +48,7 @@ void print_packet(struct Packet p) {
     else
         type = "UNKNOWN";
     
-    printf("Sequence: %d, Ack: %d, Packet type: %s, Data length: %d\n", p.sequence, p.ack, p.type, p.length);
+    printf("Sequence: %d, Ack: %d, Packet type: %s, Data length: %d\n", p.sequence, p.ack, type, p.length);
 
     if (PRINT_DATA) {
       printf("Data: %s\n", p.data);  
