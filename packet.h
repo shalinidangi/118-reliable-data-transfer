@@ -44,7 +44,7 @@ void print_packet(struct Packet p) {
     else if (p.type == TYPE_SYN)
     	type = "TYPE_SYN";
     else if (p.type == TYPE_SYN_ACK)
-    	type = "TYPE_SYN_ACK"
+    	type = "TYPE_SYN_ACK";
     else
         type = "UNKNOWN";
     
