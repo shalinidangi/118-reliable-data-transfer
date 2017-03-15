@@ -65,10 +65,12 @@ struct Packet* packetize_file(FILE * f) {
   }
 
   // Divide file into packets
+  int current_seq_num = 1; 
   int i; 
   for (i = 0; i < num_packets; i++) {
     memset((char *) &data_packet, 0, sizeof(data_packet));
-    data_packet.sequence = i; 
+    data_packet.sequence = current_seq_num;
+    current_seq_num += PACKET_SIZE; 
     data_packet.length = fread(data_packet.data, sizeof(char), PACKET_DATA_SIZE, f); 
 
     // Set last data packet
@@ -193,6 +195,7 @@ int main(int argc, char *argv[]) {
 
       int i; 
       for (i = 0; i < n_packets; i++) {
+        packets[i].ack = received_packet.length; 
         if (sendto(sock_fd, &packets[i], sizeof(struct Packet), 0, 
                   (struct sockaddr *) &client_addr, cli_len) > 0 ) {
             printf("Writing Packet #%d , with length %d\n", packets[i].sequence, packets[i].length);
