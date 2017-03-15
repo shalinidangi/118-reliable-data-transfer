@@ -30,7 +30,7 @@ void send_syn(int sockfd, struct sockaddr_in serv_addr)
   if (sendto(sockfd, &syn, sizeof(syn), 0, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)
     error("ERROR sending SYN");
 
-  printf("Sent SYN\n");
+  // printf("Sent SYN\n");
 }
 
 // Function that sends an acknowledgment to the server
@@ -39,6 +39,7 @@ void send_syn(int sockfd, struct sockaddr_in serv_addr)
 void send_ack(int seq_num, int ack_num, int sockfd, struct sockaddr_in serv_addr)
 {
     struct Packet ack;
+    // TODO: distinguish between seq_num and ack_num
     ack.sequence = seq_num;
     ack.ack = ack_num;
     ack.type = TYPE_ACK;
@@ -48,7 +49,7 @@ void send_ack(int seq_num, int ack_num, int sockfd, struct sockaddr_in serv_addr
     if (sendto(sockfd, &ack, sizeof(ack), 0, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)
       error("ERROR sending acknowledgment");
 
-    printf("Sent ack %d.\n", seq_num);
+    // printf("Sent ack %d.\n", seq_num);
 }
 
 int main(int argc, char *argv[])
@@ -115,6 +116,7 @@ int main(int argc, char *argv[])
     // Establish connection with server
     // Send SYN packet
     send_syn(sockfd, serveraddr);
+    printf("Sending packet SYN\n");
 
     // Wait for SYN-ACK packet
     while (1) {
@@ -163,18 +165,21 @@ int main(int argc, char *argv[])
              error("ERROR Packet was not received\n");
           }
           
+          printf("Receiving packet %d\n", response.sequence);
+
           // Packet received in order
           if (response.sequence == expected_sequence) {
 
             // Next sequence number should be the ack number of the packet received
             // Next ack number should be the initial sequence number + the number of bytes received
-            send_ack(response.ack, response.sequence + response.length, sockfd, serveraddr);
+            send_ack(response.sequence, response.ack, sockfd, serveraddr);
+            printf("Sending packet %d\n", response.sequence);
             
             num_bytes = fwrite(response.data, 1, response.length, f);
             if (num_bytes < 0)
               printf("Write failed");
             f_index += num_bytes;
-            expected_sequence = response.ack;
+            expected_sequence += PACKET_SIZE;
 
             if (response.type == TYPE_END_DATA) 
               break;
