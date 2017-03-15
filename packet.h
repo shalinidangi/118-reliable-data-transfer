@@ -12,6 +12,8 @@
 #define TYPE_DATA 1
 #define TYPE_ACK 2
 #define TYPE_END_DATA 3
+#define TYPE_SYN 4
+#define TYPE_SYN_ACK 5
 
 // DEBUG 
 #define PRINT_DATA 0
