@@ -23,6 +23,7 @@
 
 struct Packet {
   int sequence; 
+  int ack;
   int type; 
   int length;
   char data[PACKET_DATA_SIZE];  
@@ -40,10 +41,14 @@ void print_packet(struct Packet p) {
         type = "TYPE_ACK";
     else if (p.type == TYPE_END_DATA)
         type = "TYPE_END_DATA";
+    else if (p.type == TYPE_SYN)
+    	type = "TYPE_SYN";
+    else if (p.type == TYPE_SYN_ACK)
+    	type = "TYPE_SYN_ACK"
     else
         type = "UNKNOWN";
     
-    printf("Sequence: %d, Packet type: %s, Data length: %d\n", p.sequence, type, p.length);
+    printf("Sequence: %d, Ack: %d, Packet type: %s, Data length: %d\n", p.sequence, p.ack, p.type, p.length);
 
     if (PRINT_DATA) {
       printf("Data: %s\n", p.data);  
