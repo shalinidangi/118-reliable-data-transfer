@@ -12,10 +12,12 @@
 #include <signal.h>
 #include <fcntl.h>
 #include <time.h>
+#include <stdbool.h>
 
 #include "packet.h"
 
 #define MAX_BUFFER_SIZE 4096
+
 
 /*
  * error - wrapper for perror
@@ -101,6 +103,8 @@ int main(int argc, char *argv[]) {
   struct hostent *hostp; // Client host info
   char *hostaddrp; // Host address string
   
+  bool established_connection = false; // used for handshake 
+
   struct Packet received_packet; // Packet received from client
   FILE * f; 
   struct Packet* packets; //Array of packets for file 
@@ -152,7 +156,28 @@ int main(int argc, char *argv[]) {
     print_packet(received_packet);  
     printf("DEBUG: The size of the packet is: %d\n", recv_len);
 
-    if (received_packet.type == TYPE_REQUEST) {
+    // HANDSHAKE: Send out SYN-ACK to client
+    if (received_packet.type == TYPE_SYN && established_connection == false) {
+      struct Packet syn_ack_packet;
+      syn_ack_packet.sequence = 0; 
+      syn_ack_packet.type = TYPE_SYN_ACK;
+      syn_ack_packet.ack = received_packet.ack + 1; 
+      if (sendto(sock_fd, &syn_ack_packet, sizeof(struct Packet), 0, 
+                (struct sockaddr *) &client_addr, cli_len) > 0 ) {
+            printf("Sending packet %d %d SYN\n", syn_ack_packet.sequence, WINDOW_SIZE);
+      }
+      else {
+        printf("Error writing SYN-ACK packet\n"); 
+      }
+    }
+
+    // HANDSHAKE: Establish connection
+    if (received_packet.type == TYPE_ACK && established_connection == false) {
+      established_connection = true; 
+      printf("Receiving %d\n", received_packet.ack);      
+    }
+
+    if (received_packet.type == TYPE_REQUEST && established_connection == true) {
       printf("DEBUG: File to be opened: %s\n", received_packet.data);
       f = fopen(received_packet.data, "r");
       
@@ -178,28 +203,6 @@ int main(int argc, char *argv[]) {
       }
     } // END OF REQUEST PACKET HANDLER
    
-    /* SAMPLE CODE
-    // gethostbyaddr: determine who sent the datagram
-     
-    hostp = gethostbyaddr((const char *)&client_addr.sin_addr.s_addr, 
-        sizeof(client_addr.sin_addr.s_addr), AF_INET);
-    if (hostp == NULL)
-      error("ERROR on gethostbyaddr");
-    hostaddrp = inet_ntoa(client_addr.sin_addr);
-    if (hostaddrp == NULL)
-      error("ERROR on inet_ntoa\n");
-    printf("server received datagram from %s (%s)\n", 
-     hostp->h_name, hostaddrp);
-    printf("server received %d/%d bytes: %s\n", strlen(buf), n, buf);
-    
-   
-    // sendto: echo the input back to the client 
-  
-    n = sendto(sock_fd, buf, strlen(buf), 0, 
-         (struct sockaddr *) &client_addr, cli_len);
-    if (n < 0) 
-      error("ERROR in sendto");
-    */
   }
   
 }
