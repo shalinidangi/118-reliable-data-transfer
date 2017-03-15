@@ -198,7 +198,7 @@ int main(int argc, char *argv[]) {
         packets[i].ack = received_packet.length; 
         if (sendto(sock_fd, &packets[i], sizeof(struct Packet), 0, 
                   (struct sockaddr *) &client_addr, cli_len) > 0 ) {
-            printf("Writing Packet #%d , with length %d\n", packets[i].sequence, packets[i].length);
+            printf("Sending packet %d %d\n", packets[i].sequence, WINDOW_SIZE);
         }
         else {
           printf("Error writing Packet #%d\n", packets[i].sequence); 
