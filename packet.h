@@ -15,6 +15,9 @@
 #define TYPE_SYN 4
 #define TYPE_SYN_ACK 5
 
+// DEFAULT SERVER SETTINGS
+#define WINDOW_SIZE 5120
+
 // DEBUG 
 #define PRINT_DATA 0
 
