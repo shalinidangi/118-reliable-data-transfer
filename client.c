@@ -73,8 +73,10 @@ int main(int argc, char *argv[])
 
     struct Packet request;
     struct Packet response;
-    struct Packet* buffer;
-    int buffer_index;
+    struct Packet buffer[5];
+    
+    bool valid[5] = {false};
+    bool last_packet = false;
 
     int connection_established = false;
 
@@ -183,13 +185,63 @@ int main(int argc, char *argv[])
             f_index += num_bytes;
             expected_sequence += PACKET_SIZE;
 
-            if (response.type == TYPE_END_DATA) 
+            if (response.type == TYPE_END_DATA) {
+              last_packet = true;
               break;
+            }
+
+            int ix = 0;
+            // Check for next packets in buffer
+            while (ix < 5) {
+              // If the next expected sequence number is in the buffer AND it is valid
+              // write it to the file.  Then invalidate it in the buffer. 
+              if (buffer[ix].sequence == expected_sequence && valid[ix] == true) {
+                send_ack(buffer[ix].sequence, buffer[ix].sequence, sockfd, serveraddr);
+                printf("Sending packet %d\n", buffer[ix].sequence);
+                
+                num_bytes = fwrite(buffer[ix].data, 1, buffer[ix].length, f);
+                if (num_bytes < 0)
+                  printf("Write failed");
+                f_index += num_bytes;
+                expected_sequence += PACKET_SIZE;
+                valid[ix] = false;
+                // Start looking for the next sequence number at the beginning of the buffer.
+                ix = 0;
+
+                if (buffer[ix].type == TYPE_END_DATA) {
+                  // Found the last packet for this file. 
+                  last_packet = true;
+                  break;
+                }
+              }
+
+              // Next sequence number not found at this index. Keep looking in buffer.
+              else {
+                ix++;
+              }
+            }
           }
-          // TODO: Packet received out of order
+
+          // Packet received out of order
           else {
 
+            // Find the next open slot in the buffer
+            bool found_slot = false;
+            int ix = 0;
+            while (!found_slot && ix < 5) {
+              if (valid[ix] == false) {
+                found_slot = true;
+              }
+              ix++;
+            }
+
+          if (ix > 4) {
+            error("ERROR too many OoO packets in buffer");
           }
+          // Buffer this out-of-order packet at this slot
+          buffer[ix] = response;
+          valid[ix] = 1;
+        }
       }
     }
 
