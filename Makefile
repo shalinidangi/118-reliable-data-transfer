@@ -5,4 +5,4 @@ server: server.c
 client: client.c
 	$(CC) client.c -o client
 clean:
-	rm server client
+	rm server client received.data

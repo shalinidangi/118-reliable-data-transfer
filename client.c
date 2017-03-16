@@ -80,10 +80,6 @@ int main(int argc, char *argv[])
 
     int expected_sequence = 1;
 
-    f = fopen("output", "ab");
-    if (f == NULL)
-      error("ERROR Failed to open file");
-
     // Parse command line arguments
     if (argc != 4) {
      fprintf(stderr, "usage: %s <hostname> <port> <filename>\n", argv[0]);
@@ -140,6 +136,12 @@ int main(int argc, char *argv[])
       strcpy(request.data, filename);
       request.length = strlen(filename) + 1;
       request.type = TYPE_REQUEST;
+
+      char* output = "received.data";
+
+      f = fopen(output, "ab");
+      if (f == NULL)
+        error("ERROR Failed to open file");
 
       // Send the request
       serverlen = sizeof(serveraddr);
