@@ -58,7 +58,7 @@ int main(int argc, char *argv[])
         // https://www.cs.cmu.edu/afs/cs/academic/class/15213-f99/www/class26/udpclient.c
 
     // Initialize variables
-    int sockfd, portno, n, result;
+    int sockfd, portno, n, result, ix;
     char* filename;
 
     FILE* f;
@@ -71,14 +71,18 @@ int main(int argc, char *argv[])
 
     struct Packet request;
     struct Packet response;
+
     struct Packet buffer[5];
+    // restrict buffer size to current window
+    int expected_sequence = 1;
+    int end = WINDOW_SIZE + expected_sequence;
+    // DEBUG
+    printf("Current window start: %i, Current window end: %i\n", expected_sequence, end);
     
     bool valid[5] = {false};
-    bool last_packet = false;
+    bool last_packet_written = false;
 
     int connection_established = false;
-
-    int expected_sequence = 1;
 
     // Parse command line arguments
     if (argc != 4) {
@@ -137,6 +141,8 @@ int main(int argc, char *argv[])
       request.length = strlen(filename) + 1;
       request.type = TYPE_REQUEST;
 
+      // TODO: rename output file for multiple requests on same connection
+      // TODO: write settings "wb" vs "ab"
       char* output = "received.data";
 
       f = fopen(output, "ab");
@@ -156,11 +162,14 @@ int main(int argc, char *argv[])
 
       // TODO: Start timer for timeout
 
-      // TODO: Wait for response from server
+      // Wait for response from server
       while (1) {
 
           // TODO: If there is a timeout, resend the request
 
+          // If last packet has already been written,
+          // no more responses are expected from the server
+          if (last_packet_written) break;
 
           // Handle response packet from server
           if (recvfrom(sockfd, &response, sizeof(response), 0, (struct sockaddr *) &serveraddr, &serverlen) < 0) {
@@ -181,13 +190,15 @@ int main(int argc, char *argv[])
             if (fwrite(response.data, 1, response.length, f) != response.length)
               error("ERROR write failed");
             
-            // Update expected sequence
+            // Update expected sequence and window
             expected_sequence += PACKET_SIZE;
+            end += PACKET_SIZE;
+            // DEBUG
+            printf("Current window start: %i, Current window end: %i\n", expected_sequence, end); 
 
             if (response.type == TYPE_END_DATA) {
               // This was the last packet for this file
-              last_packet = true;
-              break;
+              last_packet_written = true;
             }
 
             int ix = 0;
@@ -203,18 +214,22 @@ int main(int argc, char *argv[])
                 if (fwrite(buffer[ix].data, 1, buffer[ix].length, f) != buffer[ix].length)
                   error("ERROR write failed");
                 
-                // Update expected_sequence
+                // Update expected_sequence and window
                 expected_sequence += PACKET_SIZE;
+                end += PACKET_SIZE;
+                // DEBUG
+                printf("Current window start: %i, Current window end: %i\n", expected_sequence, end);
+
+                if (buffer[ix].type == TYPE_END_DATA) {
+                  // Wrote the last packet for this file. 
+                  last_packet_written = true;
+                  break;
+                }
+
                 // Invalidate this slot so it can be used again.
                 valid[ix] = false;
                 // Start looking for the next sequence number at the beginning of the buffer.
                 ix = 0;
-
-                if (buffer[ix].type == TYPE_END_DATA) {
-                  // Found the last packet for this file. 
-                  last_packet = true;
-                  break;
-                }
               }
 
               // Next sequence number not found at this index. Keep looking in buffer.
@@ -227,39 +242,40 @@ int main(int argc, char *argv[])
           // Packet received out of order
           else {
 
-            // Find the next open slot in the buffer
-            bool found_slot = false;
-            int ix = 0;
-            while (!found_slot && ix < 5) {
-              if (valid[ix] == false) {
-                found_slot = true;
-              }
-              ix++;
+            // Packet received is in pre-window range. Discard it.
+            if (response.sequence < expected_sequence) {
+              printf("ERROR packet received is in pre-window range");
             }
 
-            if (ix > 4) {
-              error("ERROR too many OoO packets in buffer");
+            // Packet received is in post-window range. Discard it.
+            else if (response.sequence > end) {
+              printf("ERROR packet receives is in post-window range");
             }
-            // Buffer this out-of-order packet at this slot
-            buffer[ix] = response;
-            valid[ix] = 1;
+
+            // Packet received is in acceptable range. Buffer it.
+            else {
+              // Find the next open slot in the buffer
+              bool found_slot = false;
+              int ix = 0;
+              while (!found_slot && ix < 5) {
+                if (valid[ix] == false) {
+                  found_slot = true;
+                }
+                ix++;
+              }
+
+              if (ix > 4) {
+                error("ERROR too many OoO packets in buffer");
+              }
+              // Buffer this out-of-order packet at this slot
+              buffer[ix] = response;
+              valid[ix] = 1;
+            }
+          }
         }
       }
-    }
-
-    // REMOVE: Print server's reply
-    //n = recvfrom(sockfd, buf, strlen(buf), 0, &serveraddr, &serverlen);
-    //if (n < 0) 
-    //  error("ERROR in recvfrom");
-    //printf("Echo from server: %s", buf);
-    //return 0;
     
-
     // Close the socket
     close(sockfd);
-
-    // TODO: Close the client's copy of the file
-    //fclose(f);
-    //free(filecopy);
     return 0;
 }
