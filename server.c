@@ -254,10 +254,14 @@ int main(int argc, char *argv[]) {
         printf("DEBUG: The received ack is %d. \n", received_ack); 
 
         if (received_ack > 0) {
-          if (received_ack == packets[base].sequence) {
-            base++; 
+          int search_index = base; 
+          while (search_index < base + window_num) {
+            if (received_ack == packets[base].sequence) {
+              base++;
+              break; 
+            }
+            search_index++; 
           }
-
           // [TODO]: Handle timing
         } 
 
