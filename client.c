@@ -62,8 +62,6 @@ int main(int argc, char *argv[])
     char* filename;
 
     FILE* f;
-    int num_bytes;
-    int f_index = 0;
 
     socklen_t serverlen;
     struct sockaddr_in serveraddr;
@@ -179,13 +177,15 @@ int main(int argc, char *argv[])
             send_ack(response.sequence, response.sequence, sockfd, serveraddr);
             printf("Sending packet %d\n", response.sequence);
             
-            num_bytes = fwrite(response.data, 1, response.length, f);
-            if (num_bytes < 0)
-              printf("Write failed");
-            f_index += num_bytes;
+            // Write the packet to the file
+            if (fwrite(response.data, 1, response.length, f) != response.length)
+              error("ERROR write failed");
+            
+            // Update expected sequence
             expected_sequence += PACKET_SIZE;
 
             if (response.type == TYPE_END_DATA) {
+              // This was the last packet for this file
               last_packet = true;
               break;
             }
@@ -199,11 +199,13 @@ int main(int argc, char *argv[])
                 send_ack(buffer[ix].sequence, buffer[ix].sequence, sockfd, serveraddr);
                 printf("Sending packet %d\n", buffer[ix].sequence);
                 
-                num_bytes = fwrite(buffer[ix].data, 1, buffer[ix].length, f);
-                if (num_bytes < 0)
-                  printf("Write failed");
-                f_index += num_bytes;
+                // Write the packet to the file
+                if (fwrite(buffer[ix].data, 1, buffer[ix].length, f) != buffer[ix].length)
+                  error("ERROR write failed");
+                
+                // Update expected_sequence
                 expected_sequence += PACKET_SIZE;
+                // Invalidate this slot so it can be used again.
                 valid[ix] = false;
                 // Start looking for the next sequence number at the beginning of the buffer.
                 ix = 0;
@@ -235,12 +237,12 @@ int main(int argc, char *argv[])
               ix++;
             }
 
-          if (ix > 4) {
-            error("ERROR too many OoO packets in buffer");
-          }
-          // Buffer this out-of-order packet at this slot
-          buffer[ix] = response;
-          valid[ix] = 1;
+            if (ix > 4) {
+              error("ERROR too many OoO packets in buffer");
+            }
+            // Buffer this out-of-order packet at this slot
+            buffer[ix] = response;
+            valid[ix] = 1;
         }
       }
     }
