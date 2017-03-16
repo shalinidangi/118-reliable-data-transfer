@@ -158,6 +158,8 @@ int main(int argc, char *argv[]) {
     print_packet(received_packet);  
     printf("DEBUG: The size of the packet is: %d\n", recv_len);
 
+    printf("Established connection is %s\n", established_connection ? "true" : "false");    
+
     // HANDSHAKE: Send out SYN-ACK to client
     if (received_packet.type == TYPE_SYN && established_connection == false) {
       struct Packet syn_ack_packet;
@@ -179,6 +181,11 @@ int main(int argc, char *argv[]) {
       printf("Receiving %d\n", received_packet.ack);      
     }
 
+    // HANDLE ACK
+    if (received_packet.type == TYPE_ACK && established_connection == true) {
+      printf("DEBUG: Receiving ACK %d from Client\n", received_packet.ack); 
+      // TODO: Maintain window
+    }
     if (received_packet.type == TYPE_REQUEST && established_connection == true) {
       printf("DEBUG: File to be opened: %s\n", received_packet.data);
       f = fopen(received_packet.data, "r");
@@ -203,9 +210,13 @@ int main(int argc, char *argv[]) {
         else {
           printf("Error writing Packet #%d\n", packets[i].sequence); 
         }
-      }
+      }    
     } // END OF REQUEST PACKET HANDLER
    
+
+
+  } // END OF WHILE
+  if (packets != NULL) {
+    free(packets);
   }
-  
 }
