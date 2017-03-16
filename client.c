@@ -174,7 +174,7 @@ int main(int argc, char *argv[])
 
             // Next sequence number should be the ack number of the packet received
             // Next ack number should be the initial sequence number + the number of bytes received
-            send_ack(response.sequence, response.ack, sockfd, serveraddr);
+            send_ack(response.sequence, response.sequence, sockfd, serveraddr);
             printf("Sending packet %d\n", response.sequence);
             
             num_bytes = fwrite(response.data, 1, response.length, f);
