@@ -46,6 +46,29 @@ int number_of_packets(FILE * f) {
 }
 
 /**
+ * Handle ACKS from clients and returns the ACK number
+ */
+
+int handle_ack(int sock) {
+  int len;
+  struct Packet rec_pkt;  
+
+  len = recvfrom(sock, &rec_pkt, sizeof(struct Packet), 0, NULL, NULL);
+  if (len < 0) {
+    error("Error receiving packet from client!\n");
+  }
+
+  if (rec_pkt.type == TYPE_ACK) {
+    printf("Received ACK %d from client\n", rec_pkt.ack);
+    return rec_pkt.ack; 
+  }
+  else {
+    printf("Received packet of type %d instead of TYPE_ACK\n", rec_pkt.type);
+    return -1; 
+  }
+}
+
+/**
  * Divides the requested file into data packets
  */
 struct Packet* packetize_file(FILE * f) {
@@ -181,11 +204,6 @@ int main(int argc, char *argv[]) {
       printf("Receiving %d\n", received_packet.ack);      
     }
 
-    // HANDLE ACK
-    if (received_packet.type == TYPE_ACK && established_connection == true) {
-      printf("DEBUG: Receiving ACK %d from Client\n", received_packet.ack); 
-      // TODO: Maintain window
-    }
     if (received_packet.type == TYPE_REQUEST && established_connection == true) {
       printf("DEBUG: File to be opened: %s\n", received_packet.data);
       f = fopen(received_packet.data, "r");
@@ -199,18 +217,51 @@ int main(int argc, char *argv[]) {
       if (packets == NULL) {
         error("File failed to be packetized\n");
       }
+      
+      // Send out packets by window
+      // [TODO]: Move this to a function 
+      int next_packet_num = 0; 
+      int base = 0; 
+      bool all_sent = false; 
+      int window_num = WINDOW_SIZE / PACKET_SIZE; 
 
-      int i; 
-      for (i = 0; i < n_packets; i++) {
-        packets[i].ack = received_packet.length; 
-        if (sendto(sock_fd, &packets[i], sizeof(struct Packet), 0, 
-                  (struct sockaddr *) &client_addr, cli_len) > 0 ) {
-            printf("Sending packet %d %d\n", packets[i].sequence, WINDOW_SIZE);
+      while (all_sent == false || base < next_packet_num) {
+
+        // Send the current packets in the window
+        while (all_sent == false && next_packet_num < base + window_num) {
+          
+          // Send packet
+          if (sendto(sock_fd, &packets[next_packet_num], sizeof(struct Packet), 0, 
+             (struct sockaddr *) &client_addr, cli_len) > 0 ) {
+            printf("Sending packet %d %d\n", packets[next_packet_num].sequence, WINDOW_SIZE); 
+          }
+          else {
+            printf("Error writing packet %d\n", packets[next_packet_num].sequence);
+            error("Error writing to client"); 
+          } 
+
+          // [TODO]: Handle timing
+          
+          // Check if we are sending the final data packet
+          if (packets[next_packet_num].type == TYPE_END_DATA) {
+            all_sent = true; 
+          }
+          next_packet_num++;
         }
-        else {
-          printf("Error writing Packet #%d\n", packets[i].sequence); 
-        }
-      }    
+
+        // Handle client's ACKs
+        int received_ack = handle_ack(sock_fd);
+        printf("DEBUG: The received ack is %d. \n", received_ack); 
+
+        if (received_ack > 0) {
+          if (received_ack == packets[base].sequence) {
+            base++; 
+          }
+
+          // [TODO]: Handle timing
+        } 
+
+      } // END OF RDT LOOP
     } // END OF REQUEST PACKET HANDLER
    
 
