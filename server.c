@@ -53,7 +53,6 @@ void* timeout_check(void* dummy_arg) {
   int k;
   while (1) {
     if (sending_in_progress) {
-      printf("inside the thread\n");
       time_t curr_time = time(NULL);
       // Check each packet in the current window
       for ( k = base; k < base + window_num; k++) {
@@ -130,7 +129,7 @@ struct Packet* packetize_file(FILE * f) {
   int num_packets = 0;   
 
   num_packets = number_of_packets(f); 
-  printf("DEBUG: The number of packets needed for the file is %d\n", num_packets); 
+  // printf("DEBUG: The number of packets needed for the file is %d\n", num_packets); 
   
   // Create the packets array
   packets = (struct Packet*) malloc(sizeof(struct Packet) * num_packets);
@@ -239,7 +238,6 @@ int main(int argc, char *argv[]) {
     }
 
     // Receive a packet from client  
-    printf("before recv_len\n");
     recv_len = recvfrom(sock_fd, &received_packet, sizeof(struct Packet), 0,
                        (struct sockaddr *) &client_addr, &cli_len);
     
@@ -247,12 +245,11 @@ int main(int argc, char *argv[]) {
       continue;
     }
 
-    printf("after recv len\n");
-    printf("DEBUG: Receving a request! The contents of the packet are: \n");
-    print_packet(received_packet);  
-    printf("DEBUG: The size of the packet is: %d\n", recv_len);
+    // printf("DEBUG: Receving a request! The contents of the packet are: \n");
+    // print_packet(received_packet);  
+    // printf("DEBUG: The size of the packet is: %d\n", recv_len);
 
-    printf("Established connection is %s\n", established_connection ? "true" : "false");    
+    // printf("Established connection is %s\n", established_connection ? "true" : "false");    
 
     // HANDSHAKE: Send out SYN-ACK to client
     if (received_packet.type == TYPE_SYN && established_connection == false) {
@@ -276,7 +273,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (received_packet.type == TYPE_REQUEST && established_connection == true) {
-      printf("DEBUG: File to be opened: %s\n", received_packet.data);
+      // printf("DEBUG: File to be opened: %s\n", received_packet.data);
       f = fopen(received_packet.data, "r");
       
       if (f == NULL) {
@@ -311,7 +308,7 @@ int main(int argc, char *argv[]) {
           if (sendto(sock_fd, &packets[next_packet_num], sizeof(struct Packet), 0, 
              (struct sockaddr *) &client_addr, cli_len) > 0 ) {
             packets[next_packet_num].timestamp = time(NULL);
-            printf("DEBUG: The timestamp for packet %d is %ld\n", packets[next_packet_num].sequence, packets[next_packet_num].timestamp);
+            // printf("DEBUG: The timestamp for packet %d is %ld\n", packets[next_packet_num].sequence, packets[next_packet_num].timestamp);
             printf("Sending packet %d %d\n", packets[next_packet_num].sequence, WINDOW_SIZE); 
           }
           else {
@@ -392,7 +389,7 @@ int main(int argc, char *argv[]) {
             }
 
             if (successful_transmission) {
-              printf("Successfully transmitted file!\n");
+              // printf("Successfully transmitted file!\n");
 
               // Send a FIN packet to the client
               struct Packet fin_packet;
@@ -426,7 +423,7 @@ int main(int argc, char *argv[]) {
                     }
                     else {
                       // Timeout occured, close connection! 
-                      printf("DEBUG: Closing connection, resetting all variables\n");
+                      // printf("DEBUG: Closing connection, resetting all variables\n");
                       established_connection = false;
                       sending_in_progress = false; 
                       window_num = 0;
@@ -447,7 +444,7 @@ int main(int argc, char *argv[]) {
                   }
                 }
                 else if (response.type == TYPE_ACK) {
-                  printf("Received a late ack, ignoring\n");
+                  // printf("Received a late ack, ignoring\n");
                   continue;
                 }
                 else {
@@ -467,7 +464,7 @@ int main(int argc, char *argv[]) {
             } // END OF SUCCESSFUL TRANSMISSION
           } // END OF HANDLING ACK INSIDE UNACKED VECTOR
           else {
-            printf("DEBUG: Packet with sequence number %d is not in the unacked vector\n", received_ack);
+            // printf("DEBUG: Packet with sequence number %d is not in the unacked vector\n", received_ack);
           }
         } // END OF SUCCESSFULLY RECEIVING AN ACK 
 
