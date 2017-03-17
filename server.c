@@ -29,7 +29,7 @@ int base = 0;
 bool all_sent = false;
 bool successful_transmission = false;  
 bool sending_in_progress = false;
-int window_num = WINDOW_SIZE / PACKET_SIZE;
+int window_num;
 struct Packet* packets = NULL;
 int n_packets;
 
@@ -57,6 +57,9 @@ void* timeout_check(void* dummy_arg) {
       time_t curr_time = time(NULL);
       // Check each packet in the current window
       for ( k = base; k < base + window_num; k++) {
+        if (k >= n_packets) {
+          break;
+        }
         double time_diff = difftime(curr_time, packets[k].timestamp);
         if ((time_diff > 0.5) && !(packets[k].acked)) {
         	
@@ -69,7 +72,7 @@ void* timeout_check(void* dummy_arg) {
           }
 
           else {
-            error("Error retransmitting\n"); 
+            printf("Error retransmitting\n"); 
           }
         }
       } // END OF FOR
@@ -290,7 +293,7 @@ int main(int argc, char *argv[]) {
       // Send out packets by window
       // [TODO]: Move this to a function 
        
-
+      window_num = WINDOW_SIZE / PACKET_SIZE;
       // Initialize unacked_packets vector
       VECTOR_INIT(unacked_packets); 
       for (i = 0; i < base + window_num; i++) {
@@ -367,9 +370,11 @@ int main(int argc, char *argv[]) {
             }
             
             printf("DEBUG: The new base is now: %d\n", base);
-            printf("DEBUG: The new window is from BASE: %d to %d\n", packets[base].sequence, packets[base+window_num].sequence);
             // Update the unacked_packets vector with the new window
             for (i = base; i < base + window_num; i++) {
+              if (i >= n_packets) {
+                break;
+              }
               int idx = VECTOR_EXISTS(unacked_packets, &packets[i].sequence); 
               if (idx == -1) {
                 if ((!packets[i].acked) && (VECTOR_TOTAL(unacked_packets) < 5)) {
@@ -424,6 +429,7 @@ int main(int argc, char *argv[]) {
                       printf("DEBUG: Closing connection, resetting all variables\n");
                       established_connection = false;
                       sending_in_progress = false; 
+                      window_num = 0;
                       if (packets != NULL) {
                         free(packets);
                       }
