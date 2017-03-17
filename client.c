@@ -83,6 +83,7 @@ int main(int argc, char *argv[]) {
   
   bool valid[5] = {false};
   bool last_packet_written = false;
+  bool should_buffer = true;
 
 
 
@@ -256,6 +257,7 @@ int main(int argc, char *argv[]) {
           printf("ERROR packet received is in pre-window range. Sequence: %i\n", response.sequence);
           // DEBUG
           printf("Current window start: %i, Current window end: %i\n", expected_sequence, end);
+          send_ack(response.sequence, response.sequence, sockfd, serveraddr);
 
         }
 
@@ -265,31 +267,54 @@ int main(int argc, char *argv[]) {
           printf("ERROR packet received is in post-window range. Sequence: %i\n", response.sequence);
           // DEBUG
           printf("Current window start: %i, Current window end: %i\n", expected_sequence, end);
+          send_ack(response.sequence, response.sequence, sockfd, serveraddr);
         }
 
-        // Packet received is in acceptable range. Buffer it.
+        // Packet received is in acceptable range.
         else {
-          // Find the next open slot in the buffer
-          bool found_slot = false;
-          int ix = 0;
-          while (!found_slot && ix < 5) {
-            if (valid[ix] == false) {
-              found_slot = true;
+          // Check if it is already in the buffer.
+          // DEBUG
+          printf("Packet: %i already exists in buffer. Ignore it.\n", response.sequence);
+          ix = 0;
+          should_buffer = true;
+          while (ix < 5) {
+            if (buffer[ix].sequence == response.sequence && valid[ix] == true) {
+              should_buffer = false;
               break;
             }
-            ix++;
+            else {
+              ix++;
+            }
           }
 
-          if (ix > 4) {
-            error("ERROR too many OoO packets in buffer");
+          // DEBUG
+          printf("Place packet: %i in buffer\n", response.sequence);
+          // If packet does not already exist in buffer. Buffer it.
+          if (should_buffer) {
+            // Find the next open slot in the buffer
+            bool found_slot = false;
+            int ix = 0;
+            while (!found_slot && ix < 5) {
+              if (valid[ix] == false) {
+                found_slot = true;
+                break;
+              }
+              ix++;
+            }
+
+            if (ix > 4) {
+              error("ERROR too many OoO packets in buffer");
+            }
+
+            // Buffer this out-of-order packet at this slot
+            buffer[ix] = response;
+            valid[ix] = true;
           }
 
-          // Buffer this out-of-order packet at this slot
-          buffer[ix] = response;
-          valid[ix] = true;
-
+          // DEBUG
+          printf("Acking OoO packet %i\n", response.sequence);
           // Acknowledge reception of this packet
-          send_ack(buffer[ix].sequence, buffer[ix].sequence, sockfd, serveraddr);
+          send_ack(response.sequence, response.sequence, sockfd, serveraddr);
         }
       } // END OUT-OF-ORDER HANDLING
 
