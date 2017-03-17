@@ -13,12 +13,28 @@
 #include <fcntl.h>
 #include <time.h>
 #include <stdbool.h>
+#include <pthread.h>
 
 #include "packet.h"
 #include "vector.h"
 
 #define MAX_BUFFER_SIZE 4096
 
+/**
+ * GLOBALS 
+ */
+int i; // Use for loops
+int next_packet_num = 0; 
+int base = 0; 
+bool all_sent = false;
+bool successful_transmission = false;  
+bool sending_in_progress = false;
+int window_num = WINDOW_SIZE / PACKET_SIZE;
+struct Packet* packets = NULL;
+
+int sock_fd;
+struct sockaddr_in serv_addr, client_addr;
+unsigned int cli_len;
 
 /*
  * error - wrapper for perror
@@ -26,6 +42,37 @@
 void error(char *msg) {
   perror(msg);
   exit(1);
+}
+
+/**
+ * This thread handles retransmission of packets 
+ * and keeps track of each packets time
+ */
+void* timeout_check(void* dummy_arg) {
+  int k;
+  while (!successful_transmission) {
+    if (sending_in_progress) {
+      time_t curr_time = time(NULL);
+      // Check each packet in the current window
+      for ( k = base; k < base + window_num; k++) {
+        double time_diff = difftime(curr_time, packets[k].timestamp);
+        // printf("[TIME] For packet %d, the time difference is: %f\n", packets[k].sequence, time_diff); 
+        if ((time_diff > 0.5) && !(packets[k].acked)) {
+          printf("[RETRANSMISSION] Packet %d must be retransmitted!\n", packets[k].sequence);
+          
+          if (sendto(sock_fd, &packets[k], sizeof(struct Packet), 0, 
+             (struct sockaddr *) &client_addr, cli_len) > 0 ) {
+            printf("Sending packet %d %d Retransmission\n", packets[k].sequence, WINDOW_SIZE);
+            packets[k].timestamp = time(NULL);
+          }
+
+          else {
+            error("Error retransmitting\n"); 
+          }
+        }
+      } // END OF FOR
+    }
+  } // END OF WHILE
 }
 
 /**
@@ -73,7 +120,6 @@ int handle_ack(int sock) {
  * Divides the requested file into data packets
  */
 struct Packet* packetize_file(FILE * f) {
-  struct Packet* packets = NULL;
   struct Packet data_packet; 
   int file_size;
   int num_packets = 0;   
@@ -126,9 +172,8 @@ int main(int argc, char *argv[]) {
    * CS118 Discussion Slides
    */
   
-  int sock_fd, port, recv_len, yes = 1; 
-  unsigned int cli_len;
-  struct sockaddr_in serv_addr, client_addr;
+  int port, recv_len, yes = 1; 
+  
   struct hostent *hostp; // Client host info
   char *hostaddrp; // Host address string
   
@@ -136,10 +181,11 @@ int main(int argc, char *argv[]) {
 
   struct Packet received_packet; // Packet received from client
   FILE * f; 
-  struct Packet* packets; //Array of packets for file 
   int n_packets; 
 
-  int i; // Use for loops
+  pthread_t thread_id; 
+
+  
   
   
   // Parse port number 
@@ -174,6 +220,10 @@ int main(int argc, char *argv[]) {
   cli_len = sizeof(client_addr);
 
   printf("Waiting for incoming connections...\n"); 
+
+  // Start the timer thread
+  pthread_create(&thread_id, NULL, &timeout_check, NULL);
+
   while(1) {
     
     // Receive a packet from client  
@@ -225,12 +275,10 @@ int main(int argc, char *argv[]) {
         error("File failed to be packetized\n");
       }
       
+      sending_in_progress = true;
       // Send out packets by window
       // [TODO]: Move this to a function 
-      int next_packet_num = 0; 
-      int base = 0; 
-      bool all_sent = false; 
-      int window_num = WINDOW_SIZE / PACKET_SIZE; 
+       
 
       // Initialize unacked_packets vector
       VECTOR_INIT(unacked_packets); 
@@ -239,7 +287,7 @@ int main(int argc, char *argv[]) {
         printf("DEBUG: Initializing the vector array with sequence value - %d\n", *(VECTOR_GET(unacked_packets, int*, i)));  
       } 
 
-
+       
       while (all_sent == false || base < next_packet_num) {
 
         // Send the current packets in the window
@@ -248,12 +296,14 @@ int main(int argc, char *argv[]) {
           // Send packet
           if (sendto(sock_fd, &packets[next_packet_num], sizeof(struct Packet), 0, 
              (struct sockaddr *) &client_addr, cli_len) > 0 ) {
+            packets[next_packet_num].timestamp = time(NULL);
+            printf("DEBUG: The timestamp for packet %d is %ld\n", packets[next_packet_num].sequence, packets[next_packet_num].timestamp);
             printf("Sending packet %d %d\n", packets[next_packet_num].sequence, WINDOW_SIZE); 
           }
           else {
             printf("Error writing packet %d\n", packets[next_packet_num].sequence);
             error("Error writing to client"); 
-          } 
+        } // END OF SEND LOOP 
 
           // [TODO]: Handle timing
           
@@ -284,7 +334,13 @@ int main(int argc, char *argv[]) {
             // As anything out of it is acked already
             for (i = base; i < base + window_num; i++) {
               if (packets[i].sequence == received_ack) {
-                packets[i].acked = true; 
+                packets[i].acked = true;
+
+                // Check if we successfully received the ack for 
+                // the last data packet  
+                if (packets[i].type == TYPE_END_DATA) {
+                  successful_transmission = true;
+                }
               }
             }
 
@@ -316,6 +372,11 @@ int main(int argc, char *argv[]) {
             printf("DEBUG: After updating the window, the unacked packet array contains:\n"); 
             for (i=0; i < VECTOR_TOTAL(unacked_packets); i++) {
               printf("Index %d: %d, ", i, *(VECTOR_GET(unacked_packets, int*, i)));
+            }
+
+            if (successful_transmission) {
+              printf("Successfully transmitted file!\n");
+              break;
             }
           }
           else {

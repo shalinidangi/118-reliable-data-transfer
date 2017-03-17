@@ -29,6 +29,7 @@ struct Packet {
   int type; 
   int length;
   bool acked; 
+  time_t timestamp; 
   char data[PACKET_DATA_SIZE];  
 };
 
