@@ -51,8 +51,9 @@ void error(char *msg) {
  */
 void* timeout_check(void* dummy_arg) {
   int k;
-  while (!successful_transmission) {
+  while (1) {
     if (sending_in_progress) {
+      printf("inside the thread\n");
       time_t curr_time = time(NULL);
       // Check each packet in the current window
       for ( k = base; k < base + window_num; k++) {
@@ -180,7 +181,7 @@ int main(int argc, char *argv[]) {
   
   bool established_connection = false; // used for handshake 
 
-  struct Packet received_packet; // Packet received from client
+  
   FILE * f; 
    
 
@@ -220,22 +221,30 @@ int main(int argc, char *argv[]) {
 
   cli_len = sizeof(client_addr);
 
-  printf("Waiting for incoming connections...\n"); 
-
   // Start the timer thread
   pthread_create(&thread_id, NULL, &timeout_check, NULL);
 
   while(1) {
-    
+    printf("Waiting for incoming connections...\n"); 
+    struct Packet received_packet; // Packet received from client
+    // Initial time out value: A really long value
+    struct timeval tv;
+    tv.tv_sec = 5;
+    tv.tv_usec = 0;
+    if (setsockopt(sock_fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
+      error("ERROR setsockopt() failed");
+    }
+
     // Receive a packet from client  
+    printf("before recv_len\n");
     recv_len = recvfrom(sock_fd, &received_packet, sizeof(struct Packet), 0,
                        (struct sockaddr *) &client_addr, &cli_len);
     
     if (recv_len < 0) {
-      printf("No data received!\n");
       continue;
     }
 
+    printf("after recv len\n");
     printf("DEBUG: Receving a request! The contents of the packet are: \n");
     print_packet(received_packet);  
     printf("DEBUG: The size of the packet is: %d\n", recv_len);
@@ -289,7 +298,7 @@ int main(int argc, char *argv[]) {
         printf("DEBUG: Initializing the vector array with sequence value - %d\n", *(VECTOR_GET(unacked_packets, int*, i)));  
       } 
 
-       
+      all_sent = false;
       while (all_sent == false || base < next_packet_num) {
 
         // Send the current packets in the window
@@ -395,7 +404,6 @@ int main(int argc, char *argv[]) {
 
               // Wait for FIN_ACK 
               // Set timeout value of sock_fd to 500 ms
-              struct timeval tv;
               tv.tv_sec = 0;
               tv.tv_usec = RETRANSMISSION_TIME_OUT * 1000;
               if (setsockopt(sock_fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
@@ -413,7 +421,17 @@ int main(int argc, char *argv[]) {
                     }
                     else {
                       // Timeout occured, close connection! 
-                      established_connection = false; 
+                      printf("DEBUG: Closing connection, resetting all variables\n");
+                      established_connection = false;
+                      sending_in_progress = false; 
+                      if (packets != NULL) {
+                        free(packets);
+                      }
+                      packets = NULL;
+                      next_packet_num = 0; 
+                      base = 0; 
+                      successful_transmission = false;  
+                      
                       run = 0; // force break out of while loop
                     }
                     break;
@@ -451,7 +469,5 @@ int main(int argc, char *argv[]) {
     } // END OF REQUEST PACKET HANDLER
 
   } // END OF WHILE
-  if (packets != NULL) {
-    free(packets);
-  }
+  
 }

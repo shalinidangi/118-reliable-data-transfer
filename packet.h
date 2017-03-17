@@ -23,7 +23,7 @@
 #define WINDOW_SIZE 5120
 
 // DEBUG 
-#define PRINT_DATA 1
+#define PRINT_DATA 0
 
 struct Packet {
   int sequence; 

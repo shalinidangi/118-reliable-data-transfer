@@ -51,10 +51,9 @@ void send_fin_ack(int sockfd, struct sockaddr_in serv_addr) {
   fin_ack.type = TYPE_FIN_ACK;
   fin_ack.length = 0;
   strcpy(fin_ack.data, "");
-
+  
   if (sendto(sockfd, &fin_ack, sizeof(fin_ack), 0, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)
     error("ERROR sendto() failed to send FIN-ACK");
-
 }
 
 // Sends an acknowledgment to the server
@@ -156,7 +155,7 @@ int main(int argc, char *argv[]) {
         break;
       }
       else {
-        printf("ERROR unexpected packet type received\n");
+        printf("ERROR unexpected packet typfe received\n");
       }
     }
 
@@ -186,10 +185,9 @@ int main(int argc, char *argv[]) {
 
     // Open file for writing received packets
     // [TODO]: rename output file for multiple requests on same connection
-    // [TODO]: write settings "wb" vs "ab"
     char* output = "received.data";
 
-    f = fopen(output, "ab");
+    f = fopen(output, "wb");
     if (f == NULL)
       error("ERROR fopen() failed to open received.data");
 
