@@ -129,7 +129,7 @@ struct Packet* packetize_file(FILE * f) {
   int num_packets = 0;   
 
   num_packets = number_of_packets(f); 
-  // printf("DEBUG: The number of packets needed for the file is %d\n", num_packets); 
+  printf("DEBUG: The number of packets needed for the file is %d\n", num_packets); 
   
   // Create the packets array
   packets = (struct Packet*) malloc(sizeof(struct Packet) * num_packets);
@@ -245,9 +245,9 @@ int main(int argc, char *argv[]) {
       continue;
     }
 
-    // printf("DEBUG: Receving a request! The contents of the packet are: \n");
-    // print_packet(received_packet);  
-    // printf("DEBUG: The size of the packet is: %d\n", recv_len);
+     printf("DEBUG: Receving a request! The contents of the packet are: \n");
+     print_packet(received_packet);  
+     printf("DEBUG: The size of the packet is: %d\n", recv_len);
 
     // printf("Established connection is %s\n", established_connection ? "true" : "false");    
 
@@ -260,16 +260,11 @@ int main(int argc, char *argv[]) {
       if (sendto(sock_fd, &syn_ack_packet, sizeof(struct Packet), 0, 
                 (struct sockaddr *) &client_addr, cli_len) > 0 ) {
             printf("Sending packet %d %d SYN\n", syn_ack_packet.sequence, WINDOW_SIZE);
+            established_connection = true;
       }
       else {
         printf("Error writing SYN-ACK packet\n"); 
       }
-    }
-
-    // HANDSHAKE: Establish connection
-    if (received_packet.type == TYPE_ACK && established_connection == false) {
-      established_connection = true; 
-      printf("Receiving %d\n", received_packet.ack);      
     }
 
     if (received_packet.type == TYPE_REQUEST && established_connection == true) {

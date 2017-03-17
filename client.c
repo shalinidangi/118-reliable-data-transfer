@@ -174,9 +174,7 @@ int main(int argc, char *argv[]) {
 
   // If SYN-ACK received successfully, send ACK and request packet
   if (connection_established) {
-    // Special ACK with sequence number = acknowledgment number = 1 to establish connection
-    send_ack(1, 1, sockfd, serveraddr);
-
+  
     // Create the request
     memset((char *) &request, 0, sizeof(request));
     strcpy(request.data, filename);
