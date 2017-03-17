@@ -232,7 +232,8 @@ int main(int argc, char *argv[]) {
                        (struct sockaddr *) &client_addr, &cli_len);
     
     if (recv_len < 0) {
-      error("No data received!\n");
+      printf("No data received!\n");
+      continue;
     }
 
     printf("DEBUG: Receving a request! The contents of the packet are: \n");
@@ -420,6 +421,10 @@ int main(int argc, char *argv[]) {
                   else {
                     printf("ERROR unexpected packet type received\n");
                   }
+                }
+                else if (response.type == TYPE_ACK) {
+                  printf("Received a late ack, ignoring\n");
+                  continue;
                 }
                 else {
                   // Resend FIN
