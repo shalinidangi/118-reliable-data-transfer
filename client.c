@@ -19,13 +19,13 @@ void error(char *msg) {
   exit(0);
 }
 
-// Find milliseconds difference between calls to clock()
+// [TODO]: Find milliseconds difference between calls to clock()
 double diff_in_ms(clock_t c1, clock_t c2) {
   return (c2 - c1) / (CLOCKS_PER_SEC/1000000);
 }
 
 // Sends initial SYN packet to server to establish a connection
-void send_syn(int sockfd, struct sockaddr_in serv_addr) {
+void send_syn(int sockfd, struct sockaddr_in serv_addr, bool retransmission) {
   struct Packet syn;
   syn.sequence = 0;
   syn.ack = 0;
@@ -34,7 +34,14 @@ void send_syn(int sockfd, struct sockaddr_in serv_addr) {
   strcpy(syn.data, "");
 
   if (sendto(sockfd, &syn, sizeof(syn), 0, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)
-    error("ERROR sending SYN");
+    error("ERROR sendto() failed to send SYN");
+
+  if (retransmission) {
+    printf("Sending packet SYN Retransmission\n");
+  }
+  else {
+    printf("Sending packet SYN");
+  }
 }
 
 // Sends an acknowledgment to the server
@@ -49,7 +56,7 @@ void send_ack(int seq_num, int ack_num, int sockfd, struct sockaddr_in serv_addr
   strcpy(ack.data, "");
 
   if (sendto(sockfd, &ack, sizeof(ack), 0, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)
-    error("ERROR sending acknowledgment");
+    error("ERROR sendto() failed to send acknowledgment");
 
   printf("Sending packet %d\n", seq_num);
 }
@@ -101,15 +108,14 @@ int main(int argc, char *argv[]) {
   sockfd = socket(AF_INET, SOCK_DGRAM, 0);
   if (sockfd < 0) 
     error("ERROR opening socket");
-
-  // [TODO] Fix timeout
-  // // Set timeout value of sockfd to 500 ms
-  // struct timeval tv;
-  // tv.tv_sec = 0;
-  // tv.tv_usec = 500000;
-  // if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
-  //   perror("Error");
-  // }
+  
+  // Set timeout value of sockfd to 500 ms
+  struct timeval tv;
+  tv.tv_sec = 0;
+  tv.tv_usec = RETRANSMISSION_TIME_OUT * 1000;
+  if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
+    error("ERROR setsockopt() failed");
+  }
 
   server = gethostbyname(hostname);
   if (server == NULL) {
@@ -126,11 +132,8 @@ int main(int argc, char *argv[]) {
 
   // Establish connection with server
   // Send SYN packet
-  send_syn(sockfd, serveraddr);
-  printf("Sending packet SYN\n");
-  clock_t timer_start = clock();
-
   bool retransmission = false;
+  send_syn(sockfd, serveraddr, retransmission);
 
   // Wait for SYN-ACK packet
   while (1) {
@@ -140,8 +143,20 @@ int main(int argc, char *argv[]) {
         break;
       }
       else {
-        error("ERROR recvfrom() failed");
+        printf("ERROR unexpected packet type received\n");
       }
+    }
+
+    // Handle SYN-ACK timeout
+    else {
+      if (!retransmission) {
+        retransmission = true;
+        send_syn(sockfd, serveraddr, retransmission);
+      } 
+      // [TODO]: infinite retransmissions?
+      else {
+        error("Retransmission of SYN failed");
+      } 
     }
   }
 
@@ -163,12 +178,12 @@ int main(int argc, char *argv[]) {
 
     f = fopen(output, "ab");
     if (f == NULL)
-      error("ERROR Failed to open file");
+      error("ERROR fopen() failed to open received.data");
 
     // Send the request
     serverlen = sizeof(serveraddr);
     if (sendto(sockfd, &request, sizeof(struct Packet), 0, (struct sockaddr *) &serveraddr, serverlen) < 0)
-      error("ERROR sending request");
+      error("ERROR sendto() failed to send request");
 
     // DEBUG
     printf("Sent request for file %s\n", filename);
@@ -183,9 +198,17 @@ int main(int argc, char *argv[]) {
       if (last_packet_written) 
         break;
 
+      tv.tv_sec = 5;
+      tv.tv_usec = 0;
+      if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
+        error("ERROR setsockopt() failed");
+      }
+
       // Handle response packet from server
       if (recvfrom(sockfd, &response, sizeof(response), 0, (struct sockaddr *) &serveraddr, &serverlen) < 0) {
-         error("ERROR Packet was not received\n");
+        printf("ERROR recvfrom() timed out (for data packet)\n");
+        // No timeout when waiting for a data packet
+        continue;
       }
       printf("Receiving packet %d\n", response.sequence);
 
@@ -198,7 +221,7 @@ int main(int argc, char *argv[]) {
         
         // Write the packet to the file
         if (fwrite(response.data, 1, response.length, f) != response.length)
-          error("ERROR write failed");
+          error("ERROR fwrite() failed");
         
         // Update expected sequence and window
         expected_sequence += PACKET_SIZE;
@@ -221,7 +244,7 @@ int main(int argc, char *argv[]) {
             
             // Write the packet to the file
             if (fwrite(buffer[ix].data, 1, buffer[ix].length, f) != buffer[ix].length)
-              error("ERROR write failed");
+              error("ERROR fwrite() failed");
             
             // Update expected_sequence and window
             expected_sequence += PACKET_SIZE;
@@ -320,6 +343,49 @@ int main(int argc, char *argv[]) {
 
     } // END SERVER RESPONSE WHILE
   } 
+
+  bool connection_terminated = false;
+
+  // Terminate connection
+  while (1) {
+    if (recvfrom(sockfd, &response, sizeof(response), 0, (struct sockaddr *) &serveraddr, &serverlen) >= 0) {
+      if (response.type == TYPE_FIN) {
+        break;
+      }
+      else {
+        printf("ERROR unexpected packet type received\n");
+      }
+    }
+
+    // No timeout when waiting for FIN packet
+    else {
+      // Retry recvfrom()
+      printf("ERROR recvfrom() timed out (for FIN packet)\n");
+      // [TODO]: remove break
+      break;
+    }
+  }
+
+  // FIN packet has been received
+  // Send FIN_ACK packet and start TIME WAIT
+  tv.tv_sec = 1;
+  tv.tv_usec = 0;
+  if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
+    error("ERROR setsockopt() failed");
+  }
+
+  while (1) {
+    if (recvfrom(sockfd, &response, sizeof(response), 0, (struct sockaddr *) &serveraddr, &serverlen) < 0) {
+      connection_terminated = true;
+      break;
+    }
+    else {
+      // TIME WAIT failed
+      error("ERROR received response from server during TIME WAIT");
+      // [TODO]: remove break
+      break; 
+    }
+  }
   
   // Close the socket
   close(sockfd);
