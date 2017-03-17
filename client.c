@@ -256,6 +256,7 @@ int main(int argc, char *argv[]) {
           printf("ERROR packet received is in pre-window range. Sequence: %i\n", response.sequence);
           // DEBUG
           printf("Current window start: %i, Current window end: %i\n", expected_sequence, end);
+          send_ack(response.sequence, response.sequence, sockfd, serveraddr);
 
         }
 
@@ -265,6 +266,7 @@ int main(int argc, char *argv[]) {
           printf("ERROR packet received is in post-window range. Sequence: %i\n", response.sequence);
           // DEBUG
           printf("Current window start: %i, Current window end: %i\n", expected_sequence, end);
+          send_ack(response.sequence, response.sequence, sockfd, serveraddr);
         }
 
         // Packet received is in acceptable range. Buffer it.
