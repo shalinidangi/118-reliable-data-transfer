@@ -19,6 +19,11 @@ void error(char *msg) {
   exit(0);
 }
 
+// Find milliseconds difference between calls to clock()
+double diff_in_ms(clock_t c1, clock_t c2) {
+  return (c2 - c1) / (CLOCKS_PER_SEC/1000000);
+}
+
 // Sends initial SYN packet to server to establish a connection
 void send_syn(int sockfd, struct sockaddr_in serv_addr) {
   struct Packet syn;
@@ -113,11 +118,14 @@ int main(int argc, char *argv[]) {
   // Send SYN packet
   send_syn(sockfd, serveraddr);
   printf("Sending packet SYN\n");
+  clock_t timer_start = clock();
+
+  bool retransmission = false;
 
   // Wait for SYN-ACK packet
   while (1) {
     if (recvfrom(sockfd, &response, sizeof(response), 0, (struct sockaddr *) &serveraddr, &serverlen) < 0) {
-      error("ERROR Packet was not received\n");
+      printf("ERROR Packet was not received\n");
     }
 
     if (response.type == TYPE_SYN_ACK) {
@@ -125,7 +133,22 @@ int main(int argc, char *argv[]) {
       break;
     }
 
-    // [TODO]: handle timeout
+    // Handle timeout of SYN-ACK packet
+    if (!connection_established && diff_in_ms(timer_start, clock()) > RETRANSMISSION_TIME_OUT) {
+
+      // Retransmit.
+      if (retransmission == false) {
+        send_syn(sockfd, serveraddr);
+        printf("Sending packet SYN Retranmission\n");
+        retransmission = true;
+        // Restart timer
+        timer_start = clock();
+      }
+      // Have already retransmitted. Error and exit.
+      else {
+        error("ERROR failed to receive SYN-ACK after retransmission");
+      }
+    }
   }
 
   // If SYN-ACK received successfully, send ACK and request packet
