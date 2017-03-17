@@ -196,7 +196,7 @@ int main(int argc, char *argv[]) {
     // Wait for responses from server
     while (1) { 
 
-      tv.tv_sec = 5;
+      tv.tv_sec = 50000;
       tv.tv_usec = 0;
       if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
         error("ERROR setsockopt() failed");

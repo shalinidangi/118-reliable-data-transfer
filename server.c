@@ -67,6 +67,8 @@ void* timeout_check(void* dummy_arg) {
           if (sendto(sock_fd, &packets[k], sizeof(struct Packet), 0, 
              (struct sockaddr *) &client_addr, cli_len) > 0 ) {
             printf("Sending packet %d %d Retransmission\n", packets[k].sequence, WINDOW_SIZE);
+            printf("The packet contains the following info: \n");
+            print_packet(packets[k]);
             packets[k].timestamp = time(NULL);
           }
 
