@@ -40,7 +40,7 @@ void send_syn(int sockfd, struct sockaddr_in serv_addr, bool retransmission) {
     printf("Sending packet SYN Retransmission\n");
   }
   else {
-    printf("Sending packet SYN");
+    printf("Sending packet SYN\n");
   }
 }
 
@@ -54,6 +54,8 @@ void send_fin_ack(int sockfd, struct sockaddr_in serv_addr) {
   
   if (sendto(sockfd, &fin_ack, sizeof(fin_ack), 0, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)
     error("ERROR sendto() failed to send FIN-ACK");
+
+  printf("Sending packet FIN\n");
 }
 
 // Sends an acknowledgment to the server
@@ -70,7 +72,7 @@ void send_ack(int seq_num, int ack_num, int sockfd, struct sockaddr_in serv_addr
   if (sendto(sockfd, &ack, sizeof(ack), 0, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)
     error("ERROR sendto() failed to send acknowledgment");
 
-  printf("Sending packet %d\n", seq_num);
+  printf("Sending packet %d\n", seq_num % MAX_SEQUENCE_NUMBER);
 }
 
 int main(int argc, char *argv[]) {
@@ -214,7 +216,7 @@ int main(int argc, char *argv[]) {
           break;
         }
       }
-      printf("Receiving packet %d\n", response.sequence);
+      printf("Receiving packet %d\n", response.sequence % MAX_SEQUENCE_NUMBER);
 
       // Packet received in order
       if (response.sequence == expected_sequence) {

@@ -66,7 +66,7 @@ void* timeout_check(void* dummy_arg) {
           
           if (sendto(sock_fd, &packets[k], sizeof(struct Packet), 0, 
              (struct sockaddr *) &client_addr, cli_len) > 0 ) {
-            printf("Sending packet %d %d Retransmission\n", packets[k].sequence, WINDOW_SIZE);
+            printf("Sending packet %d %d Retransmission\n", (packets[k].sequence % MAX_SEQUENCE_NUMBER), WINDOW_SIZE);
             printf("The packet contains the following info: \n");
             print_packet(packets[k]);
             packets[k].timestamp = time(NULL);
@@ -113,7 +113,7 @@ int handle_ack(int sock) {
   }
 
   if (rec_pkt.type == TYPE_ACK) {
-    printf("Received ACK %d from client\n", rec_pkt.ack);
+    printf("Received ACK %d from client\n", (rec_pkt.ack % MAX_SEQUENCE_NUMBER));
     return rec_pkt.ack; 
   }
   else {
@@ -261,7 +261,7 @@ int main(int argc, char *argv[]) {
       syn_ack_packet.ack = received_packet.ack + 1; 
       if (sendto(sock_fd, &syn_ack_packet, sizeof(struct Packet), 0, 
                 (struct sockaddr *) &client_addr, cli_len) > 0 ) {
-            printf("Sending packet %d %d SYN\n", syn_ack_packet.sequence, WINDOW_SIZE);
+            printf("Sending packet %d %d SYN\n", (syn_ack_packet.sequence % MAX_SEQUENCE_NUMBER), WINDOW_SIZE);
             established_connection = true;
       }
       else {
@@ -306,7 +306,7 @@ int main(int argc, char *argv[]) {
              (struct sockaddr *) &client_addr, cli_len) > 0 ) {
             packets[next_packet_num].timestamp = time(NULL);
             // printf("DEBUG: The timestamp for packet %d is %ld\n", packets[next_packet_num].sequence, packets[next_packet_num].timestamp);
-            printf("Sending packet %d %d\n", packets[next_packet_num].sequence, WINDOW_SIZE); 
+            printf("Sending packet %d %d\n", (packets[next_packet_num].sequence % MAX_SEQUENCE_NUMBER), WINDOW_SIZE); 
           }
           else {
             printf("Error writing packet %d\n", packets[next_packet_num].sequence);
