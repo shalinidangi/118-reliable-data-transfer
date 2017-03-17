@@ -287,12 +287,6 @@ int main(int argc, char *argv[]) {
 
             VECTOR_DELETE(unacked_packets, index);
             // Update the base to next unacked packet 
-            // DEBUG: The new unacked_packet array contains: 
-            printf("DEBUG: After deleting the acked packet, the unacked packet array contains:\n"); 
-            for (i=0; i < VECTOR_TOTAL(unacked_packets); i++) {
-              printf("Index %d: %d, ", i, *(VECTOR_GET(unacked_packets, int*, i)));
-            }
-            
             // If there are still unacked packets - this is the first packet in the array
             if (VECTOR_TOTAL(unacked_packets) != 0) {
               base = (*(VECTOR_GET(unacked_packets, int*, 0)))/1024;
@@ -303,12 +297,12 @@ int main(int argc, char *argv[]) {
             }
             
             printf("DEBUG: The new base is now: %d\n", base);
-
+            printf("DEBUG: The new window is from BASE: %d to %d\n", packets[base].sequence, packets[base+window_num].sequence);
             // Update the unacked_packets vector with the new window
             for (i = base; i < base + window_num; i++) {
               int idx = VECTOR_EXISTS(unacked_packets, &packets[i].sequence); 
               if (idx == -1) {
-                if (!packets[i].acked) {
+                if (!packets[i].acked && VECTOR_TOTAL(unacked_packets) < 5) {
                   VECTOR_ADD(unacked_packets, &packets[i].sequence);
                 }
                 printf("DEBUG: Packet %d is already acked!\n", packets[i].sequence);
