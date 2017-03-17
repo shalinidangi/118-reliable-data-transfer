@@ -91,7 +91,7 @@ int number_of_packets(FILE * f) {
   fseek(f, 0, SEEK_END); 
   int file_size = ftell(f); 
   rewind(f);
-  printf("DEBUG: The requested file is %d bytes.\n", file_size); 
+  // printf("DEBUG: The requested file is %d bytes.\n", file_size); 
   num = file_size / PACKET_DATA_SIZE;
   if (file_size % PACKET_DATA_SIZE) {
     num++; 
@@ -131,7 +131,7 @@ struct Packet* packetize_file(FILE * f) {
   int num_packets = 0;   
 
   num_packets = number_of_packets(f); 
-  printf("DEBUG: The number of packets needed for the file is %d\n", num_packets); 
+  // printf("DEBUG: The number of packets needed for the file is %d\n", num_packets); 
   
   // Create the packets array
   packets = (struct Packet*) malloc(sizeof(struct Packet) * num_packets);
@@ -247,9 +247,9 @@ int main(int argc, char *argv[]) {
       continue;
     }
 
-     printf("DEBUG: Receving a request! The contents of the packet are: \n");
-     print_packet(received_packet);  
-     printf("DEBUG: The size of the packet is: %d\n", recv_len);
+     // printf("DEBUG: Receving a request! The contents of the packet are: \n");
+     // print_packet(received_packet);  
+     // printf("DEBUG: The size of the packet is: %d\n", recv_len);
 
     // printf("Established connection is %s\n", established_connection ? "true" : "false");    
 
@@ -292,7 +292,7 @@ int main(int argc, char *argv[]) {
       VECTOR_INIT(unacked_packets); 
       for (i = 0; i < base + window_num; i++) {
         VECTOR_ADD(unacked_packets, &packets[i].sequence); 
-        printf("DEBUG: Initializing the vector array with sequence value - %d\n", *(VECTOR_GET(unacked_packets, int*, i)));  
+        // printf("DEBUG: Initializing the vector array with sequence value - %d\n", *(VECTOR_GET(unacked_packets, int*, i)));  
       } 
 
       all_sent = false;
@@ -324,18 +324,18 @@ int main(int argc, char *argv[]) {
 
         // Handle client's ACKs
         int received_ack = handle_ack(sock_fd);
-        printf("DEBUG: The received ack is %d. \n", received_ack); 
+        // printf("DEBUG: The received ack is %d. \n", received_ack); 
 
         if (received_ack > 0) {
  
-          printf("DEBUG: The unacked packet array contains:\n"); 
-          for (i=0; i < VECTOR_TOTAL(unacked_packets); i++) {
-            printf("Index %d: %d, ", i, *(VECTOR_GET(unacked_packets, int*, i)));
-          }
-          printf("\n");
+          // printf("DEBUG: The unacked packet array contains:\n"); 
+          // for (i=0; i < VECTOR_TOTAL(unacked_packets); i++) {
+          //  printf("Index %d: %d, ", i, *(VECTOR_GET(unacked_packets, int*, i)));
+          // }
+          // printf("\n");
           // Determine if packet acked exists in unacked packet list:
           int index = VECTOR_EXISTS(unacked_packets, &received_ack);
-          printf("DEBUG: The index of the packet with sequence %d is %d. \n", received_ack, index);
+          // printf("DEBUG: The index of the packet with sequence %d is %d. \n", received_ack, index);
           if (index >= 0) {
             
             // Set the packet as acked in the packets array. We'll only look within the current window range, 
@@ -363,7 +363,7 @@ int main(int argc, char *argv[]) {
               base += window_num;
             }
             
-            printf("DEBUG: The new base is now: %d\n", base);
+            // printf("DEBUG: The new base is now: %d\n", base);
             // Update the unacked_packets vector with the new window
             for (i = base; i < base + window_num; i++) {
               if (i >= n_packets) {
@@ -372,18 +372,17 @@ int main(int argc, char *argv[]) {
               int idx = VECTOR_EXISTS(unacked_packets, &packets[i].sequence); 
               if (idx == -1) {
                 if ((!packets[i].acked) && (VECTOR_TOTAL(unacked_packets) < 5)) {
-                	printf("i is: %d\n", i);
                   VECTOR_ADD(unacked_packets, &packets[i].sequence);
                 }
-                printf("DEBUG: Packet %d is already acked!\n", packets[i].sequence);
+                // printf("DEBUG: Packet %d is already acked!\n", packets[i].sequence);
               }
             }
 
             // DEBUG: The new unacked_packet array contains: 
-            printf("DEBUG: After updating the window, the unacked packet array contains:\n"); 
-            for (i=0; i < VECTOR_TOTAL(unacked_packets); i++) {
-              printf("Index %d: %d, ", i, *(VECTOR_GET(unacked_packets, int*, i)));
-            }
+            // printf("DEBUG: After updating the window, the unacked packet array contains:\n"); 
+            // for (i=0; i < VECTOR_TOTAL(unacked_packets); i++) {
+            //  printf("Index %d: %d, ", i, *(VECTOR_GET(unacked_packets, int*, i)));
+            // }
 
             if (successful_transmission) {
               // printf("Successfully transmitted file!\n");
