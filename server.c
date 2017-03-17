@@ -287,6 +287,11 @@ int main(int argc, char *argv[]) {
 
             VECTOR_DELETE(unacked_packets, index);
             // Update the base to next unacked packet 
+            // DEBUG: The new unacked_packet array contains: 
+            printf("DEBUG: After deleting the acked packet, the unacked packet array contains:\n"); 
+            for (i=0; i < VECTOR_TOTAL(unacked_packets); i++) {
+              printf("Index %d: %d, ", i, *(VECTOR_GET(unacked_packets, int*, i)));
+            }
             
             // If there are still unacked packets - this is the first packet in the array
             if (VECTOR_TOTAL(unacked_packets) != 0) {
