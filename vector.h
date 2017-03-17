@@ -83,11 +83,9 @@ void vector_delete(vector *v, int index)
     if (index < 0 || index >= v->total)
         return;
 
-    v->items[index] = NULL;
-
-    for (int i = 0; i < v->total - 1; i++) {
-        v->items[i] = v->items[i + 1];
-        v->items[i + 1] = NULL;
+    int i, j;
+    for (i = index + 1, j = index; i < v->total; i++) {
+        v->items[j] = v->items[i];
     }
 
     v->total--;
