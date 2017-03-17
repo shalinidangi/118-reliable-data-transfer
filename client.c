@@ -54,7 +54,8 @@ void send_fin_ack(int sockfd, struct sockaddr_in serv_addr) {
   
   if (sendto(sockfd, &fin_ack, sizeof(fin_ack), 0, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)
     error("ERROR sendto() failed to send FIN-ACK");
-  printf("Sending packet FIN\n")
+  
+  printf("Sending packet FIN\n");
 }
 
 // Sends an acknowledgment to the server
@@ -99,7 +100,7 @@ int main(int argc, char *argv[]) {
   int expected_sequence = 1;
   int end = WINDOW_SIZE + expected_sequence;
   // DEBUG
-  printf("Current window start: %i, Current window end: %i\n", expected_sequence, end);
+  // printf("Current window start: %i, Current window end: %i\n", expected_sequence, end);
   
   bool valid[5] = {false};
   bool last_packet_written = false;
@@ -156,7 +157,7 @@ int main(int argc, char *argv[]) {
         break;
       }
       else {
-        printf("ERROR unexpected packet type received\n");
+        // printf("ERROR unexpected packet type received\n");
       }
     }
 
@@ -205,7 +206,7 @@ int main(int argc, char *argv[]) {
 
       // Handle response packet from server
       if (recvfrom(sockfd, &response, sizeof(response), 0, (struct sockaddr *) &serveraddr, &serverlen) < 0) {
-        printf("ERROR recvfrom() timed out (for data packet)\n");
+        // printf("ERROR recvfrom() timed out (for data packet)\n");
         // No timeout when waiting for a data packet
         continue;
       }
@@ -232,7 +233,7 @@ int main(int argc, char *argv[]) {
         expected_sequence += PACKET_SIZE;
         end += PACKET_SIZE;
         // DEBUG
-        printf("Current window start: %i, Current window end: %i\n", expected_sequence, end); 
+        // printf("Current window start: %i, Current window end: %i\n", expected_sequence, end); 
 
         // Wrote last packet of this file
         if (response.type == TYPE_END_DATA) {
@@ -257,7 +258,7 @@ int main(int argc, char *argv[]) {
             expected_sequence += PACKET_SIZE;
             end += PACKET_SIZE;
             // DEBUG
-            printf("Current window start: %i, Current window end: %i\n", expected_sequence, end);
+            // printf("Current window start: %i, Current window end: %i\n", expected_sequence, end);
 
             // Wrote last packet of this file
             if (buffer[ix].type == TYPE_END_DATA) {
@@ -284,9 +285,9 @@ int main(int argc, char *argv[]) {
         // Packet received is in pre-window range. Discard it.
         // Handles duplicate reception of a packet.
         if (response.sequence < expected_sequence) {
-          printf("ERROR packet received is in pre-window range. Sequence: %i\n", response.sequence);
+          // printf("ERROR packet received is in pre-window range. Sequence: %i\n", response.sequence);
           // DEBUG
-          printf("Current window start: %i, Current window end: %i\n", expected_sequence, end);
+          // printf("Current window start: %i, Current window end: %i\n", expected_sequence, end);
           if (response.sequence == 0) {
             continue;
           }
@@ -297,9 +298,9 @@ int main(int argc, char *argv[]) {
         // Packet received is in post-window range. Discard it.
         // This shoudn't happen.
         else if (response.sequence > end) {
-          printf("ERROR packet received is in post-window range. Sequence: %i\n", response.sequence);
+          // printf("ERROR packet received is in post-window range. Sequence: %i\n", response.sequence);
           // DEBUG
-          printf("Current window start: %i, Current window end: %i\n", expected_sequence, end);
+          // printf("Current window start: %i, Current window end: %i\n", expected_sequence, end);
           send_ack(response.sequence, response.sequence, sockfd, serveraddr);
         }
 
@@ -307,7 +308,7 @@ int main(int argc, char *argv[]) {
         else {
           // Check if it is already in the buffer.
           // DEBUG
-          printf("Packet: %i already exists in buffer. Ignore it.\n", response.sequence);
+          // printf("Packet: %i already exists in buffer. Ignore it.\n", response.sequence);
           ix = 0;
           should_buffer = true;
           while (ix < 5) {
@@ -321,7 +322,7 @@ int main(int argc, char *argv[]) {
           }
 
           // DEBUG
-          printf("Place packet: %i in buffer\n", response.sequence);
+          // printf("Place packet: %i in buffer\n", response.sequence);
           // If packet does not already exist in buffer. Buffer it.
           if (should_buffer) {
             // Find the next open slot in the buffer
@@ -345,7 +346,7 @@ int main(int argc, char *argv[]) {
           }
 
           // DEBUG
-          printf("Acking OoO packet %i\n", response.sequence);
+          // printf("Acking OoO packet %i\n", response.sequence);
           // Acknowledge reception of this packet
           send_ack(response.sequence, response.sequence, sockfd, serveraddr);
         }
@@ -373,7 +374,7 @@ int main(int argc, char *argv[]) {
     }
     else {
       // TIME WAIT failed
-      error("ERROR received response from server during TIME WAIT");
+      // printf("ERROR received response from server during TIME WAIT\n");
       // [TODO]: remove break
       break; 
     }
