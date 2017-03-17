@@ -266,17 +266,7 @@ int main(int argc, char *argv[]) {
         printf("DEBUG: The received ack is %d. \n", received_ack); 
 
         if (received_ack > 0) {
-          
-          // int search_index = base; 
-          // while (search_index < base + window_num) {
-          //   if (received_ack == packets[base].sequence) {
-          //     base++;
-          //     break; 
-          //   }
-          //   search_index++; 
-          // }
-          // 
-          // DEBUG: The new unacked_packet array contains: 
+ 
           printf("DEBUG: The unacked packet array contains:\n"); 
           for (i=0; i < VECTOR_TOTAL(unacked_packets); i++) {
             printf("Index %d: %d, ", i, *(VECTOR_GET(unacked_packets, int*, i)));
