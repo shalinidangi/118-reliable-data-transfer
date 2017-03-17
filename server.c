@@ -31,6 +31,7 @@ bool successful_transmission = false;
 bool sending_in_progress = false;
 int window_num = WINDOW_SIZE / PACKET_SIZE;
 struct Packet* packets = NULL;
+int n_packets;
 
 int sock_fd;
 struct sockaddr_in serv_addr, client_addr;
@@ -56,8 +57,11 @@ void* timeout_check(void* dummy_arg) {
       // Check each packet in the current window
       for ( k = base; k < base + window_num; k++) {
         double time_diff = difftime(curr_time, packets[k].timestamp);
-        // printf("[TIME] For packet %d, the time difference is: %f\n", packets[k].sequence, time_diff); 
+        
         if ((time_diff > 0.5) && !(packets[k].acked)) {
+        	if (k > n_packets) {
+        		continue;
+        	}
           printf("[RETRANSMISSION] Packet %d must be retransmitted!\n", packets[k].sequence);
           
           if (sendto(sock_fd, &packets[k], sizeof(struct Packet), 0, 
@@ -181,7 +185,7 @@ int main(int argc, char *argv[]) {
 
   struct Packet received_packet; // Packet received from client
   FILE * f; 
-  int n_packets; 
+   
 
   pthread_t thread_id; 
 
@@ -361,7 +365,11 @@ int main(int argc, char *argv[]) {
             for (i = base; i < base + window_num; i++) {
               int idx = VECTOR_EXISTS(unacked_packets, &packets[i].sequence); 
               if (idx == -1) {
-                if (!packets[i].acked && VECTOR_TOTAL(unacked_packets) < 5) {
+                if ((!packets[i].acked) && (VECTOR_TOTAL(unacked_packets) < 5)) {
+                	printf("i is: %d\n", i);
+                	if (i >= n_packets) {
+                		continue;
+                	}
                   VECTOR_ADD(unacked_packets, &packets[i].sequence);
                 }
                 printf("DEBUG: Packet %d is already acked!\n", packets[i].sequence);

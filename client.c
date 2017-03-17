@@ -76,7 +76,7 @@ int main(int argc, char *argv[]) {
   struct hostent *server;
   char* hostname;
 
-  int connection_established = false;
+  bool connection_established = false;
 
   struct Packet request;
   struct Packet response;
@@ -194,9 +194,14 @@ int main(int argc, char *argv[]) {
     while (1) {
 
       // If last packet has already been written,
-      // no more responses are expected from the server.
-      if (last_packet_written) 
-        break;
+      // start waiting for FIN packet
+      if (last_packet_written) {
+        if (recvfrom(sockfd, &response, sizeof(response), 0, (struct sockaddr *) &serveraddr, &serverlen) >= 0) {
+          if (response.type == TYPE_FIN) {
+            break;
+          }
+        }
+      }  
 
       tv.tv_sec = 5;
       tv.tv_usec = 0;
@@ -232,7 +237,7 @@ int main(int argc, char *argv[]) {
         // Wrote last packet of this file
         if (response.type == TYPE_END_DATA) {
           last_packet_written = true;
-          break;
+          continue;
         }
 
         // Check for next packets in buffer
@@ -345,26 +350,6 @@ int main(int argc, char *argv[]) {
   } 
 
   bool connection_terminated = false;
-
-  // Terminate connection
-  while (1) {
-    if (recvfrom(sockfd, &response, sizeof(response), 0, (struct sockaddr *) &serveraddr, &serverlen) >= 0) {
-      if (response.type == TYPE_FIN) {
-        break;
-      }
-      else {
-        printf("ERROR unexpected packet type received\n");
-      }
-    }
-
-    // No timeout when waiting for FIN packet
-    else {
-      // Retry recvfrom()
-      printf("ERROR recvfrom() timed out (for FIN packet)\n");
-      // [TODO]: remove break
-      break;
-    }
-  }
 
   // FIN packet has been received
   // Send FIN_ACK packet and start TIME WAIT
