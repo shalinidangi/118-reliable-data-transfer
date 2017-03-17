@@ -54,8 +54,7 @@ void send_fin_ack(int sockfd, struct sockaddr_in serv_addr) {
   
   if (sendto(sockfd, &fin_ack, sizeof(fin_ack), 0, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)
     error("ERROR sendto() failed to send FIN-ACK");
-
-  printf("Sending packet FIN\n");
+  printf("Sending packet FIN\n")
 }
 
 // Sends an acknowledgment to the server
