@@ -101,6 +101,14 @@ int main(int argc, char *argv[]) {
   if (sockfd < 0) 
     error("ERROR opening socket");
 
+  // Set timeout value of sockfd to 500 ms
+  struct timeval tv;
+  tv.tv_sec = 0;
+  tv.tv_usec = 500000;
+  if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
+    perror("Error");
+  }
+
   server = gethostbyname(hostname);
   if (server == NULL) {
     fprintf(stderr,"ERROR, no such host as %s\n", hostname);
@@ -124,29 +132,13 @@ int main(int argc, char *argv[]) {
 
   // Wait for SYN-ACK packet
   while (1) {
-    if (recvfrom(sockfd, &response, sizeof(response), 0, (struct sockaddr *) &serveraddr, &serverlen) < 0) {
-      printf("ERROR Packet was not received\n");
-    }
-
-    if (response.type == TYPE_SYN_ACK) {
-      connection_established = true;
-      break;
-    }
-
-    // Handle timeout of SYN-ACK packet
-    if (!connection_established && diff_in_ms(timer_start, clock()) > RETRANSMISSION_TIME_OUT) {
-
-      // Retransmit.
-      if (retransmission == false) {
-        send_syn(sockfd, serveraddr);
-        printf("Sending packet SYN Retranmission\n");
-        retransmission = true;
-        // Restart timer
-        timer_start = clock();
+    if (recvfrom(sockfd, &response, sizeof(response), 0, (struct sockaddr *) &serveraddr, &serverlen) >= 0) {
+      if (response.type == TYPE_SYN_ACK) {
+        connection_established = true;
+        break;
       }
-      // Have already retransmitted. Error and exit.
       else {
-        error("ERROR failed to receive SYN-ACK after retransmission");
+        error("ERROR recvfrom() failed");
       }
     }
   }
@@ -269,7 +261,7 @@ int main(int argc, char *argv[]) {
         // Packet received is in post-window range. Discard it.
         // This shoudn't happen.
         else if (response.sequence > end) {
-          printf("ERROR packet receives is in post-window range. Sequence: %i\n", response.sequence);
+          printf("ERROR packet received is in post-window range. Sequence: %i\n", response.sequence);
           // DEBUG
           printf("Current window start: %i, Current window end: %i\n", expected_sequence, end);
         }
