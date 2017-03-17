@@ -404,10 +404,10 @@ int main(int argc, char *argv[]) {
               int run = 1;
               while(run) {
                 struct Packet response; 
-                if (recvfrom(sock_fd, &response, sizeof(response), 0, (struct sockaddr *) &serveraddr, &serverlen) >= 0) {
+                if (recvfrom(sock_fd, &response, sizeof(response), 0, (struct sockaddr *) &client_addr, &cli_len) >= 0) {
                   if (response.type == TYPE_FIN_ACK) {
                     // Wait for timeout
-                    if (recvfrom(sock_fd, &response, sizeof(response), 0, (struct sockaddr *) &serveraddr, &serverlen) >= 0) {
+                    if (recvfrom(sock_fd, &response, sizeof(response), 0, (struct sockaddr *) &client_addr, &cli_len) >= 0) {
                       printf("ERROR unexpected packet type received\n");
                     }
                     else {
