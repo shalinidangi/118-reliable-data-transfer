@@ -29,8 +29,9 @@ int base = 0;
 bool all_sent = false;
 bool successful_transmission = false;  
 bool sending_in_progress = false;
-int window_num = WINDOW_SIZE / PACKET_SIZE;
+int window_num;
 struct Packet* packets = NULL;
+int n_packets;
 
 int sock_fd;
 struct sockaddr_in serv_addr, client_addr;
@@ -50,14 +51,18 @@ void error(char *msg) {
  */
 void* timeout_check(void* dummy_arg) {
   int k;
-  while (!successful_transmission) {
+  while (1) {
     if (sending_in_progress) {
+      printf("inside the thread\n");
       time_t curr_time = time(NULL);
       // Check each packet in the current window
       for ( k = base; k < base + window_num; k++) {
+        if (k >= n_packets) {
+          break;
+        }
         double time_diff = difftime(curr_time, packets[k].timestamp);
-        // printf("[TIME] For packet %d, the time difference is: %f\n", packets[k].sequence, time_diff); 
         if ((time_diff > 0.5) && !(packets[k].acked)) {
+        	
           printf("[RETRANSMISSION] Packet %d must be retransmitted!\n", packets[k].sequence);
           
           if (sendto(sock_fd, &packets[k], sizeof(struct Packet), 0, 
@@ -67,7 +72,7 @@ void* timeout_check(void* dummy_arg) {
           }
 
           else {
-            error("Error retransmitting\n"); 
+            printf("Error retransmitting\n"); 
           }
         }
       } // END OF FOR
@@ -179,9 +184,9 @@ int main(int argc, char *argv[]) {
   
   bool established_connection = false; // used for handshake 
 
-  struct Packet received_packet; // Packet received from client
+  
   FILE * f; 
-  int n_packets; 
+   
 
   pthread_t thread_id; 
 
@@ -219,21 +224,30 @@ int main(int argc, char *argv[]) {
 
   cli_len = sizeof(client_addr);
 
-  printf("Waiting for incoming connections...\n"); 
-
   // Start the timer thread
   pthread_create(&thread_id, NULL, &timeout_check, NULL);
 
   while(1) {
-    
+    printf("Waiting for incoming connections...\n"); 
+    struct Packet received_packet; // Packet received from client
+    // Initial time out value: A really long value
+    struct timeval tv;
+    tv.tv_sec = 5;
+    tv.tv_usec = 0;
+    if (setsockopt(sock_fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
+      error("ERROR setsockopt() failed");
+    }
+
     // Receive a packet from client  
+    printf("before recv_len\n");
     recv_len = recvfrom(sock_fd, &received_packet, sizeof(struct Packet), 0,
                        (struct sockaddr *) &client_addr, &cli_len);
     
     if (recv_len < 0) {
-      error("No data received!\n");
+      continue;
     }
 
+    printf("after recv len\n");
     printf("DEBUG: Receving a request! The contents of the packet are: \n");
     print_packet(received_packet);  
     printf("DEBUG: The size of the packet is: %d\n", recv_len);
@@ -279,7 +293,7 @@ int main(int argc, char *argv[]) {
       // Send out packets by window
       // [TODO]: Move this to a function 
        
-
+      window_num = WINDOW_SIZE / PACKET_SIZE;
       // Initialize unacked_packets vector
       VECTOR_INIT(unacked_packets); 
       for (i = 0; i < base + window_num; i++) {
@@ -287,7 +301,7 @@ int main(int argc, char *argv[]) {
         printf("DEBUG: Initializing the vector array with sequence value - %d\n", *(VECTOR_GET(unacked_packets, int*, i)));  
       } 
 
-       
+      all_sent = false;
       while (all_sent == false || base < next_packet_num) {
 
         // Send the current packets in the window
@@ -356,12 +370,15 @@ int main(int argc, char *argv[]) {
             }
             
             printf("DEBUG: The new base is now: %d\n", base);
-            printf("DEBUG: The new window is from BASE: %d to %d\n", packets[base].sequence, packets[base+window_num].sequence);
             // Update the unacked_packets vector with the new window
             for (i = base; i < base + window_num; i++) {
+              if (i >= n_packets) {
+                break;
+              }
               int idx = VECTOR_EXISTS(unacked_packets, &packets[i].sequence); 
               if (idx == -1) {
-                if (!packets[i].acked && VECTOR_TOTAL(unacked_packets) < 5) {
+                if ((!packets[i].acked) && (VECTOR_TOTAL(unacked_packets) < 5)) {
+                	printf("i is: %d\n", i);
                   VECTOR_ADD(unacked_packets, &packets[i].sequence);
                 }
                 printf("DEBUG: Packet %d is already acked!\n", packets[i].sequence);
@@ -376,22 +393,87 @@ int main(int argc, char *argv[]) {
 
             if (successful_transmission) {
               printf("Successfully transmitted file!\n");
+
+              // Send a FIN packet to the client
+              struct Packet fin_packet;
+              fin_packet.sequence = 0; 
+              fin_packet.type = TYPE_FIN;
+              fin_packet.ack = received_packet.ack + 1; 
+              if (sendto(sock_fd, &fin_packet, sizeof(struct Packet), 0, 
+                        (struct sockaddr *) &client_addr, cli_len) > 0 ) {
+                    printf("Sending packet %d %d FIN\n", fin_packet.sequence, WINDOW_SIZE);
+              }
+              else {
+                printf("Error writing FIN packet\n"); 
+              }
+
+              // Wait for FIN_ACK 
+              // Set timeout value of sock_fd to 500 ms
+              tv.tv_sec = 0;
+              tv.tv_usec = RETRANSMISSION_TIME_OUT * 1000;
+              if (setsockopt(sock_fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
+                error("ERROR setsockopt() failed");
+              }
+
+              int run = 1;
+              while(run) {
+                struct Packet response; 
+                if (recvfrom(sock_fd, &response, sizeof(response), 0, (struct sockaddr *) &client_addr, &cli_len) >= 0) {
+                  if (response.type == TYPE_FIN_ACK) {
+                    // Wait for timeout
+                    if (recvfrom(sock_fd, &response, sizeof(response), 0, (struct sockaddr *) &client_addr, &cli_len) >= 0) {
+                      printf("ERROR unexpected packet type received\n");
+                    }
+                    else {
+                      // Timeout occured, close connection! 
+                      printf("DEBUG: Closing connection, resetting all variables\n");
+                      established_connection = false;
+                      sending_in_progress = false; 
+                      window_num = 0;
+                      if (packets != NULL) {
+                        free(packets);
+                      }
+                      packets = NULL;
+                      next_packet_num = 0; 
+                      base = 0; 
+                      successful_transmission = false;  
+                      
+                      run = 0; // force break out of while loop
+                    }
+                    break;
+                  }
+                  else {
+                    printf("ERROR unexpected packet type received\n");
+                  }
+                }
+                else if (response.type == TYPE_ACK) {
+                  printf("Received a late ack, ignoring\n");
+                  continue;
+                }
+                else {
+                  // Resend FIN
+                  if (sendto(sock_fd, &fin_packet, sizeof(struct Packet), 0, 
+                     (struct sockaddr *) &client_addr, cli_len) > 0 ) {
+                    printf("Sending packet %d %d FIN\n", fin_packet.sequence, WINDOW_SIZE);
+                  }
+                  else {
+                    printf("Error writing FIN packet after retransmission\n"); 
+                  }
+                }
+              } // END OF FIN_ACK LOOP
+
+              all_sent = true; // force out of while loop
               break;
-            }
-          }
+            } // END OF SUCCESSFUL TRANSMISSION
+          } // END OF HANDLING ACK INSIDE UNACKED VECTOR
           else {
             printf("DEBUG: Packet with sequence number %d is not in the unacked vector\n", received_ack);
           }
-          // [TODO]: Handle timing
-        } 
+        } // END OF SUCCESSFULLY RECEIVING AN ACK 
 
       } // END OF RDT LOOP
     } // END OF REQUEST PACKET HANDLER
-   
-
 
   } // END OF WHILE
-  if (packets != NULL) {
-    free(packets);
-  }
+  
 }
