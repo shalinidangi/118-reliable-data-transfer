@@ -14,6 +14,10 @@
 #define VECTOR_TOTAL(vec) vector_total(&vec)
 #define VECTOR_FREE(vec) vector_free(&vec)
 
+/**
+ * Implementation taken from Edd Mann with minor bug fixes made by Breanna 
+ * https://eddmann.com/posts/implementing-a-dynamic-vector-array-in-c/
+ */
 
 typedef struct vector {
     void **items;
