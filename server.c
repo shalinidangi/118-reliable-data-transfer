@@ -136,6 +136,9 @@ int main(int argc, char *argv[]) {
   struct Packet* packets; //Array of packets for file 
   int n_packets; 
 
+  int i; // Use for loops
+  
+  
   // Parse port number 
   if (argc != 2) {
     fprintf(stderr, "usage: %s <port>\n", argv[0]);
