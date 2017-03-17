@@ -144,7 +144,7 @@ struct Packet* packetize_file(FILE * f) {
   for (i = 0; i < num_packets; i++) {
     memset((char *) &data_packet, 0, sizeof(data_packet));
     data_packet.sequence = current_seq_num;
-    current_seq_num += PACKET_SIZE; 
+    current_seq_num = (current_seq_num + PACKET_SIZE) % MAX_SEQUENCE_NUMBER; 
     data_packet.length = fread(data_packet.data, sizeof(char), PACKET_DATA_SIZE, f); 
     data_packet.acked = false; 
     // Set last data packet
