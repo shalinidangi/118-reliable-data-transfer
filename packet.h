@@ -16,6 +16,8 @@
 #define TYPE_END_DATA 3
 #define TYPE_SYN 4
 #define TYPE_SYN_ACK 5
+#define TYPE_FIN 6
+#define TYPE_FIN_ACK 7
 
 // DEFAULT SERVER SETTINGS
 #define WINDOW_SIZE 5120
