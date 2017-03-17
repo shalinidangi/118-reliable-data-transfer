@@ -273,6 +273,8 @@ int main(int argc, char *argv[]) {
         // Packet received is in acceptable range.
         else {
           // Check if it is already in the buffer.
+          // DEBUG
+          printf("Packet: %i already exists in buffer. Ignore it.\n", response.sequence);
           ix = 0;
           should_buffer = true;
           while (ix < 5) {
@@ -285,6 +287,8 @@ int main(int argc, char *argv[]) {
             }
           }
 
+          // DEBUG
+          printf("Place packet: %i in buffer\n", response.sequence);
           // If packet does not already exist in buffer. Buffer it.
           if (should_buffer) {
             // Find the next open slot in the buffer
@@ -307,6 +311,8 @@ int main(int argc, char *argv[]) {
             valid[ix] = true;
           }
 
+          // DEBUG
+          printf("Acking OoO packet %i\n", response.sequence);
           // Acknowledge reception of this packet
           send_ack(buffer[ix].sequence, buffer[ix].sequence, sockfd, serveraddr);
         }
