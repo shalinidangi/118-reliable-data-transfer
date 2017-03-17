@@ -95,8 +95,8 @@ int main(int argc, char *argv[]) {
 
   struct Packet buffer[5];
   // restrict buffer size to current window
-  int expected_sequence = 1;
-  int end = WINDOW_SIZE + expected_sequence;
+  int expected_sequence = 1 % MAX_SEQUENCE_NUMBER;
+  int end = (WINDOW_SIZE + expected_sequence) % MAX_SEQUENCE_NUMBER;
   // DEBUG
   printf("Current window start: %i, Current window end: %i\n", expected_sequence, end);
   
@@ -236,8 +236,8 @@ int main(int argc, char *argv[]) {
           error("ERROR fwrite() failed");
         
         // Update expected sequence and window
-        expected_sequence += PACKET_SIZE;
-        end += PACKET_SIZE;
+        expected_sequence = (expected_sequence + PACKET_SIZE) % MAX_SEQUENCE_NUMBER;
+        end = (end + PACKET_SIZE) % MAX_SEQUENCE_NUMBER;
         // DEBUG
         printf("Current window start: %i, Current window end: %i\n", expected_sequence, end); 
 
@@ -261,8 +261,8 @@ int main(int argc, char *argv[]) {
               error("ERROR fwrite() failed");
             
             // Update expected_sequence and window
-            expected_sequence += PACKET_SIZE;
-            end += PACKET_SIZE;
+            expected_sequence = (expected_sequence + PACKET_SIZE) % MAX_SEQUENCE_NUMBER;
+            end = (end + PACKET_SIZE) % MAX_SEQUENCE_NUMBER;
             // DEBUG
             printf("Current window start: %i, Current window end: %i\n", expected_sequence, end);
 
