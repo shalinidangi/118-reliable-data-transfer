@@ -44,6 +44,19 @@ void send_syn(int sockfd, struct sockaddr_in serv_addr, bool retransmission) {
   }
 }
 
+void send_fin_ack(int sockfd, struct sockaddr_in serv_addr) {
+  struct Packet fin_ack;
+  fin_ack.sequence = 0;
+  fin_ack.ack = 0;
+  fin_ack.type = TYPE_FIN_ACK;
+  fin_ack.length = 0;
+  strcpy(fin_ack.data, "");
+
+  if (sendto(sockfd, &fin_ack, sizeof(fin_ack), 0, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)
+    error("ERROR sendto() failed to send FIN-ACK");
+
+}
+
 // Sends an acknowledgment to the server
 // Indicates the client has received packet beginning with sequence number seq_num
 void send_ack(int seq_num, int ack_num, int sockfd, struct sockaddr_in serv_addr) {
@@ -359,6 +372,8 @@ int main(int argc, char *argv[]) {
   if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
     error("ERROR setsockopt() failed");
   }
+
+  send_fin_ack(sockfd, serveraddr);
 
   while (1) {
     if (recvfrom(sockfd, &response, sizeof(response), 0, (struct sockaddr *) &serveraddr, &serverlen) < 0) {
