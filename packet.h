@@ -2,6 +2,8 @@
  * packet.h
  * High level representation of a packet 
  */
+#ifndef PACKET_H
+#define PACKET_H
 
 #define PACKET_SIZE 1024
 #define PACKET_DATA_SIZE 1000
@@ -26,6 +28,7 @@ struct Packet {
   int ack;
   int type; 
   int length;
+  bool acked; 
   char data[PACKET_DATA_SIZE];  
 };
 
@@ -48,7 +51,7 @@ void print_packet(struct Packet p) {
     else
         type = "UNKNOWN";
     
-    printf("Sequence: %d, Ack: %d, Packet type: %s, Data length: %d\n", p.sequence, p.ack, type, p.length);
+    printf("Sequence: %d, Ack: %d, Acked? %s,Packet type: %s, Data length: %d\n", p.sequence, p.ack, p.acked ? "true" : "false", type, p.length);
 
     if (PRINT_DATA) {
       printf("Data: %s\n", p.data);  
@@ -65,3 +68,4 @@ void print_packet_array(struct Packet* p, int size) {
     print_packet(p[i]); 
   }
 }
+#endif
