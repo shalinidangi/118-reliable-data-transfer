@@ -314,7 +314,7 @@ int main(int argc, char *argv[]) {
           // DEBUG
           printf("Acking OoO packet %i\n", response.sequence);
           // Acknowledge reception of this packet
-          send_ack(buffer[ix].sequence, buffer[ix].sequence, sockfd, serveraddr);
+          send_ack(response.sequence, response.sequence, sockfd, serveraddr);
         }
       } // END OUT-OF-ORDER HANDLING
 
