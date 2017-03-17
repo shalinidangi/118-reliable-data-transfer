@@ -260,13 +260,18 @@ int main(int argc, char *argv[]) {
         // Packet received is in pre-window range. Discard it.
         // Handles duplicate reception of a packet.
         if (response.sequence < expected_sequence) {
-          printf("ERROR packet received is in pre-window range");
+          printf("ERROR packet received is in pre-window range. Sequence: %i\n", response.sequence);
+          // DEBUG
+          printf("Current window start: %i, Current window end: %i\n", expected_sequence, end);
+
         }
 
         // Packet received is in post-window range. Discard it.
         // This shoudn't happen.
         else if (response.sequence > end) {
-          printf("ERROR packet receives is in post-window range");
+          printf("ERROR packet receives is in post-window range. Sequence: %i\n", response.sequence);
+          // DEBUG
+          printf("Current window start: %i, Current window end: %i\n", expected_sequence, end);
         }
 
         // Packet received is in acceptable range. Buffer it.
