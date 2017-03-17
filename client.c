@@ -92,7 +92,7 @@ int main(int argc, char *argv[]) {
   bool last_packet_written = false;
   bool should_buffer = true;
 
-
+  bool received_fin = false;
 
   // Parse command line arguments
   if (argc != 4) {
@@ -191,17 +191,7 @@ int main(int argc, char *argv[]) {
     // [TODO]: Timer for request packet acknowledgment?
 
     // Wait for responses from server
-    while (1) {
-
-      // If last packet has already been written,
-      // start waiting for FIN packet
-      if (last_packet_written) {
-        if (recvfrom(sockfd, &response, sizeof(response), 0, (struct sockaddr *) &serveraddr, &serverlen) >= 0) {
-          if (response.type == TYPE_FIN) {
-            break;
-          }
-        }
-      }  
+    while (1) { 
 
       tv.tv_sec = 5;
       tv.tv_usec = 0;
@@ -214,6 +204,12 @@ int main(int argc, char *argv[]) {
         printf("ERROR recvfrom() timed out (for data packet)\n");
         // No timeout when waiting for a data packet
         continue;
+      }
+      else {
+        if (last_packet_written && response.type == TYPE_FIN) {
+          received_fin = true;
+          break;
+        }
       }
       printf("Receiving packet %d\n", response.sequence);
 
@@ -237,6 +233,8 @@ int main(int argc, char *argv[]) {
         // Wrote last packet of this file
         if (response.type == TYPE_END_DATA) {
           last_packet_written = true;
+          // REMOVE
+          received_fin = true;
           continue;
         }
 
@@ -285,6 +283,9 @@ int main(int argc, char *argv[]) {
           printf("ERROR packet received is in pre-window range. Sequence: %i\n", response.sequence);
           // DEBUG
           printf("Current window start: %i, Current window end: %i\n", expected_sequence, end);
+          if (response.sequence == 0) {
+            continue;
+          }
           send_ack(response.sequence, response.sequence, sockfd, serveraddr);
 
         }

@@ -59,9 +59,7 @@ void* timeout_check(void* dummy_arg) {
         double time_diff = difftime(curr_time, packets[k].timestamp);
         
         if ((time_diff > 0.5) && !(packets[k].acked)) {
-        	if (k > n_packets) {
-        		continue;
-        	}
+        	
           printf("[RETRANSMISSION] Packet %d must be retransmitted!\n", packets[k].sequence);
           
           if (sendto(sock_fd, &packets[k], sizeof(struct Packet), 0, 
@@ -367,9 +365,6 @@ int main(int argc, char *argv[]) {
               if (idx == -1) {
                 if ((!packets[i].acked) && (VECTOR_TOTAL(unacked_packets) < 5)) {
                 	printf("i is: %d\n", i);
-                	if (i >= n_packets) {
-                		continue;
-                	}
                   VECTOR_ADD(unacked_packets, &packets[i].sequence);
                 }
                 printf("DEBUG: Packet %d is already acked!\n", packets[i].sequence);
