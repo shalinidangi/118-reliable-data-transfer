@@ -101,13 +101,14 @@ int main(int argc, char *argv[]) {
   if (sockfd < 0) 
     error("ERROR opening socket");
 
-  // Set timeout value of sockfd to 500 ms
-  struct timeval tv;
-  tv.tv_sec = 0;
-  tv.tv_usec = 500000;
-  if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
-    perror("Error");
-  }
+  // [TODO] Fix timeout
+  // // Set timeout value of sockfd to 500 ms
+  // struct timeval tv;
+  // tv.tv_sec = 0;
+  // tv.tv_usec = 500000;
+  // if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
+  //   perror("Error");
+  // }
 
   server = gethostbyname(hostname);
   if (server == NULL) {
