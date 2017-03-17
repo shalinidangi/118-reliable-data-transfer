@@ -57,7 +57,6 @@ void* timeout_check(void* dummy_arg) {
       // Check each packet in the current window
       for ( k = base; k < base + window_num; k++) {
         double time_diff = difftime(curr_time, packets[k].timestamp);
-        
         if ((time_diff > 0.5) && !(packets[k].acked)) {
         	
           printf("[RETRANSMISSION] Packet %d must be retransmitted!\n", packets[k].sequence);
@@ -379,19 +378,72 @@ int main(int argc, char *argv[]) {
 
             if (successful_transmission) {
               printf("Successfully transmitted file!\n");
+
+              // Send a FIN packet to the client
+              struct Packet fin_packet;
+              fin_packet.sequence = 0; 
+              fin_packet.type = TYPE_FIN;
+              fin_packet.ack = received_packet.ack + 1; 
+              if (sendto(sock_fd, &fin_packet, sizeof(struct Packet), 0, 
+                        (struct sockaddr *) &client_addr, cli_len) > 0 ) {
+                    printf("Sending packet %d %d FIN\n", fin_packet.sequence, WINDOW_SIZE);
+              }
+              else {
+                printf("Error writing FIN packet\n"); 
+              }
+
+              // Wait for FIN_ACK 
+              // Set timeout value of sock_fd to 500 ms
+              struct timeval tv;
+              tv.tv_sec = 0;
+              tv.tv_usec = RETRANSMISSION_TIME_OUT * 1000;
+              if (setsockopt(sock_fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
+                error("ERROR setsockopt() failed");
+              }
+
+              int run = 1;
+              while(run) {
+                struct Packet response; 
+                if (recvfrom(sock_fd, &response, sizeof(response), 0, (struct sockaddr *) &serveraddr, &serverlen) >= 0) {
+                  if (response.type == TYPE_FIN_ACK) {
+                    // Wait for timeout
+                    if (recvfrom(sock_fd, &response, sizeof(response), 0, (struct sockaddr *) &serveraddr, &serverlen) >= 0) {
+                      printf("ERROR unexpected packet type received\n");
+                    }
+                    else {
+                      // Timeout occured, close connection! 
+                      established_connection = false; 
+                      run = 0; // force break out of while loop
+                    }
+                    break;
+                  }
+                  else {
+                    printf("ERROR unexpected packet type received\n");
+                  }
+                }
+                else {
+                  // Resend FIN
+                  if (sendto(sock_fd, &fin_packet, sizeof(struct Packet), 0, 
+                     (struct sockaddr *) &client_addr, cli_len) > 0 ) {
+                    printf("Sending packet %d %d FIN\n", fin_packet.sequence, WINDOW_SIZE);
+                  }
+                  else {
+                    printf("Error writing FIN packet after retransmission\n"); 
+                  }
+                }
+              } // END OF FIN_ACK LOOP
+
+              all_sent = true; // force out of while loop
               break;
-            }
-          }
+            } // END OF SUCCESSFUL TRANSMISSION
+          } // END OF HANDLING ACK INSIDE UNACKED VECTOR
           else {
             printf("DEBUG: Packet with sequence number %d is not in the unacked vector\n", received_ack);
           }
-          // [TODO]: Handle timing
-        } 
+        } // END OF SUCCESSFULLY RECEIVING AN ACK 
 
       } // END OF RDT LOOP
     } // END OF REQUEST PACKET HANDLER
-   
-
 
   } // END OF WHILE
   if (packets != NULL) {
