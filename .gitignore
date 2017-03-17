@@ -1,4 +1,7 @@
 server
 client
 received.data
+debug.txt
+client.dSYM/*
+server.dSYM/*
 
