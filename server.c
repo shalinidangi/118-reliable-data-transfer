@@ -108,8 +108,11 @@ struct Packet* packetize_file(FILE * f) {
     packets[i] = data_packet;
   }
 
-  printf("DEBUG: Content of packet array: \n");
-  print_packet_array(packets, num_packets); 
+  if (PRINT_DATA) {
+    printf("DEBUG: Content of packet array: \n");
+    print_packet_array(packets, num_packets);
+  }
+   
   return packets;
 }
 
