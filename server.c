@@ -15,6 +15,7 @@
 #include <stdbool.h>
 
 #include "packet.h"
+#include "vector.h"
 
 #define MAX_BUFFER_SIZE 4096
 
@@ -225,6 +226,14 @@ int main(int argc, char *argv[]) {
       bool all_sent = false; 
       int window_num = WINDOW_SIZE / PACKET_SIZE; 
 
+      // Initialize unacked_packets vector
+      VECTOR_INIT(unacked_packets); 
+      for (i = 0; i < base + window_num; i++) {
+        VECTOR_ADD(unacked_packets, &packets[i].sequence); 
+        printf("DEBUG: Initializing the vector array with sequence value - %d\n", *(VECTOR_GET(unacked_packets, int*, i)));  
+      } 
+
+
       while (all_sent == false || base < next_packet_num) {
 
         // Send the current packets in the window
@@ -254,14 +263,50 @@ int main(int argc, char *argv[]) {
         printf("DEBUG: The received ack is %d. \n", received_ack); 
 
         if (received_ack > 0) {
-          int search_index = base; 
-          while (search_index < base + window_num) {
-            if (received_ack == packets[base].sequence) {
-              base++;
-              break; 
-            }
-            search_index++; 
+          
+          // int search_index = base; 
+          // while (search_index < base + window_num) {
+          //   if (received_ack == packets[base].sequence) {
+          //     base++;
+          //     break; 
+          //   }
+          //   search_index++; 
+          // }
+          // 
+          // DEBUG: The new unacked_packet array contains: 
+          printf("DEBUG: The unacked packet array contains:\n"); 
+          for (i=0; i < VECTOR_TOTAL(unacked_packets); i++) {
+            printf("Index %d: %d, ", i, *(VECTOR_GET(unacked_packets, int*, i)));
           }
+          printf("\n");
+          // Determine if packet acked exists in unacked packet list:
+          int index = VECTOR_EXISTS(unacked_packets, &received_ack);
+          printf("DEBUG: The index of the packet with sequence %d is %d. \n", received_ack, index);
+          if (index >= 0) {
+            VECTOR_DELETE(unacked_packets, index);
+          }
+          else {
+            printf("DEBUG: Packet with sequence number %d is not in the unacked vector\n", received_ack);
+          }
+
+          // Update the base to next unacked packet -- this is the first packet in the array
+          base = (*(VECTOR_GET(unacked_packets, int*, 0)))/1024;
+          printf("DEBUG: The new base is now: %d\n", base);
+
+          // Update the unacked_packets vector with the new window
+          for (i = base; i < base + window_num; i++) {
+            int idx = VECTOR_EXISTS(unacked_packets, &packets[i].sequence); 
+            if (idx == -1) {
+              VECTOR_ADD(unacked_packets, &packets[i].sequence);
+            }
+          }
+
+          // DEBUG: The new unacked_packet array contains: 
+          printf("DEBUG: After updating the window, the unacked packet array contains:\n"); 
+          for (i=0; i < VECTOR_TOTAL(unacked_packets); i++) {
+            printf("Index %d: %d, ", i, *(VECTOR_GET(unacked_packets, int*, i)));
+          }
+
           // [TODO]: Handle timing
         } 
 
