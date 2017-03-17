@@ -155,21 +155,15 @@ int main(int argc, char *argv[]) {
         break;
       }
       else {
-        printf("ERROR unexpected packet typfe received\n");
+        printf("ERROR unexpected packet type received\n");
       }
     }
 
     // Handle SYN-ACK timeout
     else {
-      if (!retransmission) {
-        retransmission = true;
-        send_syn(sockfd, serveraddr, retransmission);
-      } 
-      // [TODO]: infinite retransmissions?
-      else {
-        error("Retransmission of SYN failed");
-      } 
-    }
+      retransmission = true;
+      send_syn(sockfd, serveraddr, retransmission);
+   }
   }
 
   // If SYN-ACK received successfully, send ACK and request packet
